@@ -1,0 +1,7 @@
+# BLUENRG-232 board configuration
+
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_STEVAL_IDB011V2
+	bool "BLUENRG-LP Development Board"
+	depends on SOC_BLUENRG_LP
