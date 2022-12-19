@@ -1,0 +1,13 @@
+# ST Microelectronics BLUENRG MCU line
+
+# Copyright (c) 2019 Linaro Limited
+# SPDX-License-Identifier: Apache-2.0
+
+choice
+	prompt "BLUENRG_LP MCU Selection"
+	depends on SOC_SERIES_BLUENRG
+
+config SOC_BLUENRG_LP
+	bool "BLUENRG_LP"
+
+endchoice
