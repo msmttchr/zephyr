@@ -1,0 +1,14 @@
+# ST Microelectronics STM32WB55XX MCU
+
+# Copyright (c) 2019 Linaro Limited
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_BLUENRG_LP
+
+config SOC
+	default "bluenrg_lp"
+
+config NUM_IRQS
+	default 32
+
+endif # SOC_BLUENRG_LP
