@@ -1,0 +1,13 @@
+# ST Microelectronics STM32WB MCU line
+
+# Copyright (c) 2019 Linaro Limited
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SERIES_BLUENRG
+
+config SOC_SERIES
+	default "bluenrg"
+
+source "soc/arm/st_bluenrg/bluenrg/Kconfig.defconfig.bluenrg_lp*"
+
+endif # SOC_SERIES_BLUENRG
