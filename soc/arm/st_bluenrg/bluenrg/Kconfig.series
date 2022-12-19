@@ -1,0 +1,13 @@
+# Copyright (c) 2019 Lexmark International, Inc.
+# Copyright (c) 2019 Stephanos Ioannidis <root@stephanos.io>
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_BLUENRG
+	bool "BLUENRG Series MCU"
+	select ARM
+	select CPU_CORTEX_M0PLUS
+	select SOC_FAMILY_BLUENRG
+	select CPU_CORTEX_M_HAS_SYSTICK
+	select CORTEX_M_SYSTICK
+    help
+	  Enable support for BLUENRG MCU series

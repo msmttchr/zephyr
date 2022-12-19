@@ -180,6 +180,8 @@ source "drivers/serial/Kconfig.uart_sam"
 
 source "drivers/serial/Kconfig.stm32"
 
+source "drivers/serial/Kconfig.bluenrg"
+
 source "drivers/serial/Kconfig.nrfx"
 
 source "drivers/serial/Kconfig.altera_jtag"

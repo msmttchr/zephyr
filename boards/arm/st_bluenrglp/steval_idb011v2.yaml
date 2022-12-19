@@ -1,0 +1,12 @@
+identifier: bluenrg_lp
+name: BLUENRG_LP
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+supported:
+  - counter
+ram: 64
+flash: 256
