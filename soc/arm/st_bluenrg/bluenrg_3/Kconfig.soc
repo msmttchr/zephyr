@@ -5,7 +5,7 @@
 
 choice
 	prompt "BLUENRG_LP MCU Selection"
-	depends on SOC_SERIES_BLUENRG
+	depends on SOC_SERIES_BLUENRG_3
 
 config SOC_BLUENRG_LP
 	bool "BLUENRG_LP"
