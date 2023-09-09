@@ -24,7 +24,7 @@ manifest:
     - name: babblesim
       url-base: https://github.com/BabbleSim
     - name: bluenrg_hal
-      url-base: https://github.com/Killian-dev
+      url-base: https://github.com/msmttchr
 
   group-filter: [-babblesim, -optional]
 
@@ -235,8 +235,8 @@ manifest:
       path: modules/hal/stm32
       groups:
         - hal
-    - name: zephyrproject_modules_hal_bluenrg
-      revision: dd8ca80f71c7354afbe824beeff15f7ce4bd3070
+    - name: hal_bluenrg
+      revision: 6e482c907f6031e32b0c6af54ededdd56c211028
       path: modules/hal/st_bluenrg
       remote: bluenrg_hal
       groups:
