@@ -1,0 +1,9 @@
+# Copyright (c) 2023 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+config PINCTRL_BLUENRG_3
+	bool "BlueNRG-LPx pin controller driver"
+	default y
+	depends on DT_HAS_ST_STM32_PINCTRL_ENABLED && SOC_SERIES_BLUENRG_3
+	help
+	  BlueNRG-LPx pinctrl driver
