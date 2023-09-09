@@ -1,0 +1,11 @@
+# STM32 GPIO configuration
+
+# Copyright (c) 2016 Open-RnD Sp. z o.o.
+# SPDX-License-Identifier: Apache-2.0
+
+config GPIO_BLUENRG_3
+	bool "GPIO Driver for BlueNRG-LPx Series of MCUs"
+	default y
+	depends on DT_HAS_ST_STM32_GPIO_ENABLED && SOC_SERIES_BLUENRG_3
+	help
+	  Enable GPIO driver for BlueNRG-LPx line of MCUs

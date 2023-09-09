@@ -7,7 +7,6 @@
 menuconfig CLOCK_CONTROL_BLUENRG_3
 	bool "BlueNRG Reset & Clock Control"
 	depends on SOC_SERIES_BLUENRG_3
-	#select CLOCK_CONTROL_BLUENRG_3
 	help
 	  Enable driver for Reset & Clock Control subsystem found
 	  in BlueNRG-LPx series of MCUs
@@ -19,6 +18,7 @@ config CLOCK_BLUENRG_HSE_CLOCK
 	int "HSE clock value"
 	default "$(DT_STM32_HSE_CLOCK_FREQ)" if "$(dt_nodelabel_enabled,clk_hse)"
 	default 32000000
+	depends on SOC_SERIES_BLUENRG_3
 	help
 	  Value of external high-speed clock (HSE). This symbol could be optionally
 	  configured using device tree by setting "clock-frequency" value of clk_hse
