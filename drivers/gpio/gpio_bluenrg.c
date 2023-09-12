@@ -169,7 +169,6 @@ static void gpio_stm32_configure_raw(const struct device *dev, int pin,
 	}
 
 	LL_GPIO_SetPinMode(gpio, pin_ll, mode >> STM32_MODER_SHIFT);
-
 }
 
 /**
@@ -368,7 +367,12 @@ static int gpio_stm32_port_toggle_bits(const struct device *dev,
 	const struct gpio_stm32_config *cfg = dev->config;
 	GPIO_TypeDef *gpio = (GPIO_TypeDef *)cfg->base;
 
+	/*
+	 * On F1 series, using LL API requires a costly pin mask translation.
+	 * Skip it and use CMSIS API directly. Valid also on other series.
+	 */
 	WRITE_REG(gpio->ODR, READ_REG(gpio->ODR) ^ pins);
+
 	return 0;
 }
 
@@ -599,14 +603,6 @@ static int gpio_stm32_init(const struct device *dev)
 		return -ENODEV;
 	}
 
-#if (defined(PWR_CR2_IOSV) || defined(PWR_SVMCR_IO2SV)) && \
-	DT_NODE_HAS_STATUS(DT_NODELABEL(gpiog), okay)
-	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
-	/* Port G[15:2] requires external power supply */
-	/* Cf: L4/L5 RM, Chapter "Independent I/O supply rail" */
-	LL_PWR_EnableVddIO2();
-	z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
-#endif
 	/* enable port clock (if runtime PM is not enabled) */
 	ret = gpio_stm32_clock_request(dev, !IS_ENABLED(CONFIG_PM_DEVICE_RUNTIME));
 	if (ret < 0) {
