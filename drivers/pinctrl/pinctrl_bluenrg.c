@@ -61,7 +61,7 @@ static int stm32_pin_configure(uint32_t pin, uint32_t pin_cgf, uint32_t pin_func
 		return -ENODEV;
 	}
 
-	return gpio_stm32_configure(port_device, STM32_PIN(pin), pin_cgf, pin_func);
+	return gpio_bluenrg_configure(port_device, STM32_PIN(pin), pin_cgf, pin_func);
 }
 
 int pinctrl_configure_pins(const pinctrl_soc_pin_t *pins, uint8_t pin_cnt,
