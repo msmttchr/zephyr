@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT st_bluenrg_uart
+#define DT_DRV_COMPAT st_stm32_uart
 
 /**
  * @brief Driver for UART port on BlueNRG family processor.
@@ -13,9 +13,6 @@
  *        majority of operations are performed the same way.
  *        Please validate for newly added series.
  */
-#include <zephyr/sys/printk.h>
-
-
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/sys/__assert.h>
@@ -24,25 +21,96 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/reset.h>
-
-#include <zephyr/linker/sections.h>
-//#include <zephyr/drivers/clock_control/bluenrg_clock_control.h>
-#include "uart_bluenrg.h"
-#include "bluenrg_lpx.h"
+#include <zephyr/pm/policy.h>
+#include <zephyr/pm/device.h>
 
 #include <rf_driver_ll_usart.h>
-#include <rf_driver_ll_lpuart.h>
-#include <rf_driver_ll_system.h>
-#include <rf_driver_ll_bus.h>
-#include <rf_driver_ll_rcc.h>
+#ifdef CONFIG_UART_ASYNC_API
+#include <zephyr/drivers/dma/dma_stm32.h>
+#include <zephyr/drivers/dma.h>
+#endif
+
+#include <zephyr/linker/sections.h>
+#include <zephyr/drivers/clock_control/bluenrg_clock_control.h>
+#include "uart_bluenrg.h"
 
 #include <zephyr/logging/log.h>
 #include <zephyr/irq.h>
 LOG_MODULE_REGISTER(uart_bluenrg, CONFIG_UART_LOG_LEVEL);
 
-static int uart_bluenrg_poll_in(const struct device *dev, unsigned char *c)
+static inline void uart_stm32_set_baudrate(const struct device *dev, uint32_t baud_rate)
 {
-	const struct uart_bluenrg_config *config = dev->config;
+  const struct uart_stm32_config *config = dev->config;
+
+  LL_USART_SetBaudRate(config->usart,
+		       LL_USART_PRESCALER_DIV1,
+		       LL_USART_OVERSAMPLING_16,
+		       baud_rate);
+}
+
+static inline void uart_stm32_set_parity(const struct device *dev,
+					 uint32_t parity)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	LL_USART_SetParity(config->usart, parity);
+}
+
+static inline uint32_t uart_stm32_get_parity(const struct device *dev)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	return LL_USART_GetParity(config->usart);
+}
+
+static inline void uart_stm32_set_stopbits(const struct device *dev,
+					   uint32_t stopbits)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	LL_USART_SetStopBitsLength(config->usart, stopbits);
+}
+
+static inline uint32_t uart_stm32_get_stopbits(const struct device *dev)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	return LL_USART_GetStopBitsLength(config->usart);
+}
+
+static inline void uart_stm32_set_databits(const struct device *dev,
+					   uint32_t databits)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	LL_USART_SetDataWidth(config->usart, databits);
+}
+
+static inline uint32_t uart_stm32_get_databits(const struct device *dev)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	return LL_USART_GetDataWidth(config->usart);
+}
+
+static inline void uart_stm32_set_hwctrl(const struct device *dev,
+					 uint32_t hwctrl)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	LL_USART_SetHWFlowCtrl(config->usart, hwctrl);
+}
+
+static inline uint32_t uart_stm32_get_hwctrl(const struct device *dev)
+{
+	const struct uart_stm32_config *config = dev->config;
+
+	return LL_USART_GetHWFlowCtrl(config->usart);
+}
+
+static int uart_stm32_poll_in(const struct device *dev, unsigned char *c)
+{
+	const struct uart_stm32_config *config = dev->config;
 
 	/* Clear overrun error flag */
 	if (LL_USART_IsActiveFlag_ORE(config->usart)) {
@@ -64,10 +132,10 @@ static int uart_bluenrg_poll_in(const struct device *dev, unsigned char *c)
 
 
 
-static void uart_bluenrg_poll_out(const struct device *dev,
+static void uart_stm32_poll_out(const struct device *dev,
 					unsigned char c)
 {
-	const struct uart_bluenrg_config *config = dev->config;
+	const struct uart_stm32_config *config = dev->config;
 
 	unsigned int key;
 
@@ -92,9 +160,9 @@ static void uart_bluenrg_poll_out(const struct device *dev,
 
 
 
-static int uart_bluenrg_err_check(const struct device *dev)
+static int uart_stm32_err_check(const struct device *dev)
 {
-	const struct uart_bluenrg_config *config = dev->config;
+	const struct uart_stm32_config *config = dev->config;
 	uint32_t err = 0U;
 
 	/* Check for errors, then clear them.
@@ -139,11 +207,10 @@ static int uart_bluenrg_err_check(const struct device *dev)
 	return err;
 }
 
-
-static const struct uart_driver_api uart_bluenrg_driver_api = {
-	.poll_in = uart_bluenrg_poll_in,
-	.poll_out = uart_bluenrg_poll_out,
-	.err_check = uart_bluenrg_err_check,
+static const struct uart_driver_api uart_stm32_driver_api = {
+	.poll_in = uart_stm32_poll_in,
+	.poll_out = uart_stm32_poll_out,
+	.err_check = uart_stm32_err_check,
 };
 
 
@@ -157,33 +224,20 @@ static const struct uart_driver_api uart_bluenrg_driver_api = {
  *
  * @return 0
  */
-static int uart_bluenrg_init(const struct device *dev)
+static int uart_stm32_init(const struct device *dev)
 {
-	const struct uart_bluenrg_config *config = dev->config;
-	struct uart_bluenrg_data *data = dev->data;
+	const struct uart_stm32_config *config = dev->config;
+	struct uart_stm32_data *data = dev->data;
 	uint32_t ll_parity;
 	uint32_t ll_datawidth;
 	int err;
 
-	//__uart_bluenrg_get_clock(dev);
-
-	// if (!device_is_ready(data->clock)) {
-	// 	LOG_ERR("clock control device not ready");
-	// 	return -ENODEV;
-	// }
-
-	/* enable clock */
-	LL_RCC_HSE_SetCapacitorTuning(32);
-	LL_RCC_HSE_SetCurrentControl((0x2U << (4UL) | 0x1U << (4UL))); // LL_RCC_HSE_CURRENTMAX_3 : (RCC_RFSWHSECR_GMC_1| RCC_RFSWHSECR_GMC_0) : (0x2U << (4UL) | 0x1U << (4UL))
-	//SystemTimer_TimeoutConfig(32000000, 100, TRUE);
-	LL_RCC_HSE_Enable();
-	LL_APB1_EnableClock(0x400UL);
-
-	// err = clock_control_on(data->clock, (clock_control_subsys_t)&config->pclken[0]);
-	// if (err != 0) {
-	// 	LOG_ERR("Could not enable (LP)UART clock");
-	// 	return err;
-	// }
+	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
+	err = clock_control_on(clk, (clock_control_subsys_t)&config->pclken[0]);
+	if (err != 0) {
+		LOG_ERR("Could not enable (LP)UART clock");
+		return err;
+	}
 
 	// if (IS_ENABLED(BLUENRG_UART_DOMAIN_CLOCK_SUPPORT) && (config->pclk_len > 1)) {
 	// 	err = clock_control_configure(DEVICE_DT_GET(BLUENRG_CLOCK_CONTROL_NODE),
@@ -196,10 +250,10 @@ static int uart_bluenrg_init(const struct device *dev)
 	// }
 
 	/* Configure dt provided device signals when available */
-	// err = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
-	// if (err < 0) {
-	// 	return err;
-	// }
+	err = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+	if (err < 0) {
+		return err;
+	}
 
 	LL_USART_Disable(config->usart);
 
@@ -243,11 +297,11 @@ static int uart_bluenrg_init(const struct device *dev)
 				 LL_USART_STOPBITS_1);
 
 	if (config->hw_flow_control) {
-		uart_bluenrg_set_hwctrl(dev, LL_USART_HWCONTROL_RTS_CTS);
+		uart_stm32_set_hwctrl(dev, LL_USART_HWCONTROL_RTS_CTS);
 	}
 
 	/* Set the default baudrate */
-	uart_bluenrg_set_baudrate(dev, data->baud_rate);
+	uart_stm32_set_baudrate(dev, data->baud_rate);
 
 	/* Enable the single wire / half-duplex mode */
 	if (config->single_wire) {
@@ -255,7 +309,76 @@ static int uart_bluenrg_init(const struct device *dev)
 	}
 
 	LL_USART_Enable(config->usart);
+	return 0;
 }
+#ifdef CONFIG_UART_ASYNC_API
+#define UART_DMA_CHANNEL(index, dir, DIR, src, dest)			\
+.dma_##dir = {								\
+	COND_CODE_1(DT_INST_DMAS_HAS_NAME(index, dir),			\
+		 (UART_DMA_CHANNEL_INIT(index, dir, DIR, src, dest)),	\
+		 (NULL))						\
+	},
+
+#else
+#define UART_DMA_CHANNEL(index, dir, DIR, src, dest)
+#endif
+
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API) || \
+	defined(CONFIG_PM)
+#define BLUENRG_UART_IRQ_HANDLER_DECL(index)				\
+	static void uart_stm32_irq_config_func_##index(const struct device *dev);
+#define BLUENRG_UART_IRQ_HANDLER(index)					\
+static void uart_stm32_irq_config_func_##index(const struct device *dev)	\
+{									\
+	IRQ_CONNECT(DT_INST_IRQN(index),				\
+		DT_INST_IRQ(index, priority),				\
+		uart_stm32_isr, DEVICE_DT_INST_GET(index),		\
+		0);							\
+	irq_enable(DT_INST_IRQN(index));				\
+}
+#else
+#define BLUENRG_UART_IRQ_HANDLER_DECL(index) /* Not used */
+#define BLUENRG_UART_IRQ_HANDLER(index) /* Not used */
+#endif
+
+#if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API) || \
+	defined(CONFIG_PM)
+#define BLUENRG_UART_IRQ_HANDLER_FUNC(index)				\
+	.irq_config_func = uart_stm32_irq_config_func_##index,
+#else
+#define BLUENRG_UART_IRQ_HANDLER_FUNC(index) /* Not used */
+#endif
+
+#ifdef CONFIG_UART_ASYNC_API
+#define UART_DMA_CHANNEL(index, dir, DIR, src, dest)			\
+.dma_##dir = {								\
+	COND_CODE_1(DT_INST_DMAS_HAS_NAME(index, dir),			\
+		 (UART_DMA_CHANNEL_INIT(index, dir, DIR, src, dest)),	\
+		 (NULL))						\
+	},
+
+#else
+#define UART_DMA_CHANNEL(index, dir, DIR, src, dest)
+#endif
+
+
+#ifdef CONFIG_PM
+#define STM32_UART_PM_WAKEUP(index)						\
+	.wakeup_source = DT_INST_PROP(index, wakeup_source),			\
+	.wakeup_line = COND_CODE_1(DT_INST_NODE_HAS_PROP(index, wakeup_line),	\
+			(DT_INST_PROP(index, wakeup_line)),			\
+			(STM32_EXTI_LINE_NONE)),
+#else
+static int uart_stm32_pm_action(const struct device *dev,
+			          void *action)
+{
+  return 0;
+}
+#define BLUENRG_UART_PM_WAKEUP(index) /* Not used */
+#endif
+
+#define BLUENRG_UART_IRQ_HANDLER_DECL(index) /* Not used */
+#define BLUENRG_UART_IRQ_HANDLER(index) /* Not used */
 
 
 #define BLUENRG_UART_INIT(index)						\
@@ -263,10 +386,10 @@ BLUENRG_UART_IRQ_HANDLER_DECL(index)					\
 									\
 PINCTRL_DT_INST_DEFINE(index);						\
 									\
-static const struct bluenrg_pclken pclken_##index[] =			\
-					    BLUENRG_DT_INST_CLOCKS(index);\
+static const struct stm32_pclken pclken_##index[] =			\
+					    STM32_DT_INST_CLOCKS(index);\
 									\
-static const struct uart_bluenrg_config uart_bluenrg_cfg_##index = {	\
+static const struct uart_stm32_config uart_stm32_cfg_##index = {	\
 	.usart = (USART_TypeDef *)DT_INST_REG_ADDR(index),		\
 	.pclken = pclken_##index,					\
 	.pclk_len = DT_INST_NUM_CLOCKS(index),				\
@@ -281,21 +404,21 @@ static const struct uart_bluenrg_config uart_bluenrg_cfg_##index = {	\
 	BLUENRG_UART_PM_WAKEUP(index)					\
 };									\
 									\
-static struct uart_bluenrg_data uart_bluenrg_data_##index = {		\
+static struct uart_stm32_data uart_stm32_data_##index = {		\
 	.baud_rate = DT_INST_PROP(index, current_speed),		\
 	.reset = RESET_DT_SPEC_GET(DT_DRV_INST(index)),			\
 	UART_DMA_CHANNEL(index, rx, RX, PERIPHERAL, MEMORY)		\
 	UART_DMA_CHANNEL(index, tx, TX, MEMORY, PERIPHERAL)		\
 };									\
 									\
-PM_DEVICE_DT_INST_DEFINE(index, uart_bluenrg_pm_action);		        \
+PM_DEVICE_DT_INST_DEFINE(index, uart_stm32_pm_action);		\
 									\
 DEVICE_DT_INST_DEFINE(index,						\
-		    &uart_bluenrg_init,					\
+		    &uart_stm32_init,					\
 		    PM_DEVICE_DT_INST_GET(index),			\
-		    &uart_bluenrg_data_##index, &uart_bluenrg_cfg_##index,	\
+		    &uart_stm32_data_##index, &uart_stm32_cfg_##index,	\
 		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,		\
-		    &uart_bluenrg_driver_api);				\
+		    &uart_stm32_driver_api);				\
 									\
 BLUENRG_UART_IRQ_HANDLER(index)
 
