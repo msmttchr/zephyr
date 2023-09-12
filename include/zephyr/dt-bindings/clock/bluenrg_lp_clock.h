@@ -53,12 +53,13 @@
 //  * @param mask Mask for the RCC_CCIPRx field.
 //  * @param val Clock value (0, 1, ... 7).
 //  */
-// #define BLUENRG_CLOCK(val, mask, shift, reg)					\
-// 	((((reg) & BLUENRG_CLOCK_REG_MASK) << BLUENRG_CLOCK_REG_SHIFT) |		\
-// 	 (((shift) & BLUENRG_CLOCK_SHIFT_MASK) << BLUENRG_CLOCK_SHIFT_SHIFT) |	\
-// 	 (((mask) & BLUENRG_CLOCK_MASK_MASK) << BLUENRG_CLOCK_MASK_SHIFT) |		\
-// 	 (((val) & BLUENRG_CLOCK_VAL_MASK) << BLUENRG_CLOCK_VAL_SHIFT))
-
+#if 0
+#define BLUENRG_CLOCK(val, mask, shift, reg)					\
+	((((reg) & BLUENRG_CLOCK_REG_MASK) << BLUENRG_CLOCK_REG_SHIFT) |		\
+	 (((shift) & BLUENRG_CLOCK_SHIFT_MASK) << BLUENRG_CLOCK_SHIFT_SHIFT) |	\
+	 (((mask) & BLUENRG_CLOCK_MASK_MASK) << BLUENRG_CLOCK_MASK_SHIFT) |		\
+	 (((val) & BLUENRG_CLOCK_VAL_MASK) << BLUENRG_CLOCK_VAL_SHIFT))
+#endif
 // /** @brief RCC_CCIPR register offset */
 // #define CCIPR_REG		0x4C
 

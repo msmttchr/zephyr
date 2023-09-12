@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include <st/bluenrg/bluenrg_lp.dtsi>
-#include "steval_idb011v2-pinctrl.dtsi"
+#include <st/bluenrg_3/bluenrg-355.dtsi>
 
 / {
 	model = "STMicroelectronics BLUENRG_LP-STEVAL_IDB011V2 board";
@@ -15,8 +15,8 @@
 	chosen {
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
-		//zephyr,console = &usart1;
-		//zephyr,shell-uart = &usart1;
+		zephyr,console = &usart1;
+		zephyr,shell-uart = &usart1;
 	};
 	leds {
 		compatible = "gpio-leds";
@@ -76,14 +76,13 @@
 	apb2-prescaler = <1>;
 };
 
-/*
 &usart1 {
-	pinctrl-0 = <&usart_tx_pa9 &usart_rx_pa8>;
+	pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa8>;
 	pinctrl-names="default";
 	current-speed = <115200>;
-	status = "disabled";
+	status = "okay";
 };
-*/
+
 &gpiob {
 	status = "okay";
 };
