@@ -87,7 +87,7 @@ static int gpio_stm32_flags_to_conf(gpio_flags_t flags, int *pincfg)
 	return 0;
 }
 
-#if defined(CONFIG_GPIO_GET_CONFIG)
+#if defined(CONFIG_GPIO_GET_CONFIG) && !defined(CONFIG_SOC_SERIES_STM32F1X)
 /**
  * @brief Custom stm32 flags to zephyr
  */
@@ -103,6 +103,10 @@ static int gpio_stm32_pincfg_to_flags(struct gpio_stm32_pin pin_cfg,
 		}
 	} else if (pin_cfg.mode == LL_GPIO_MODE_INPUT) {
 		flags |= GPIO_INPUT;
+#ifdef CONFIG_SOC_SERIES_STM32F1X
+	} else if (pin_cfg.mode == LL_GPIO_MODE_FLOATING) {
+		flags |= GPIO_INPUT;
+#endif
 	} else {
 		flags |= GPIO_DISCONNECTED;
 	}
@@ -132,7 +136,16 @@ static inline uint32_t stm32_pinval_get(int pin)
 {
 	uint32_t pinval;
 
+#ifdef CONFIG_SOC_SERIES_STM32F1X
+	pinval = (1 << pin) << GPIO_PIN_MASK_POS;
+	if (pin < 8) {
+		pinval |= 1 << pin;
+	} else {
+		pinval |= (1 << (pin % 8)) | 0x04000000;
+	}
+#else
 	pinval = 1 << pin;
+#endif
 	return pinval;
 }
 
@@ -147,12 +160,86 @@ static void gpio_stm32_configure_raw(const struct device *dev, int pin,
 
 	int pin_ll = stm32_pinval_get(pin);
 
+#ifdef CONFIG_SOC_SERIES_STM32F1X
+	ARG_UNUSED(func);
+
+	uint32_t temp = conf &
+			      (STM32_MODE_INOUT_MASK << STM32_MODE_INOUT_SHIFT);
+
+	if (temp == STM32_MODE_INPUT) {
+		temp = conf & (STM32_CNF_IN_MASK << STM32_CNF_IN_SHIFT);
+
+		if (temp == STM32_CNF_IN_ANALOG) {
+			LL_GPIO_SetPinMode(gpio, pin_ll, LL_GPIO_MODE_ANALOG);
+		} else if (temp == STM32_CNF_IN_FLOAT) {
+			LL_GPIO_SetPinMode(gpio, pin_ll, LL_GPIO_MODE_FLOATING);
+		} else {
+			temp = conf & (STM32_PUPD_MASK << STM32_PUPD_SHIFT);
+
+			if (temp == STM32_PUPD_PULL_UP) {
+				LL_GPIO_SetPinPull(gpio, pin_ll,
+							       LL_GPIO_PULL_UP);
+			} else {
+				LL_GPIO_SetPinPull(gpio, pin_ll,
+							     LL_GPIO_PULL_DOWN);
+			}
+
+			LL_GPIO_SetPinMode(gpio, pin_ll, LL_GPIO_MODE_INPUT);
+		}
+
+	} else {
+		temp = conf & (STM32_CNF_OUT_1_MASK << STM32_CNF_OUT_1_SHIFT);
+
+		if (temp == STM32_CNF_GP_OUTPUT) {
+			LL_GPIO_SetPinMode(gpio, pin_ll, LL_GPIO_MODE_OUTPUT);
+		} else {
+			LL_GPIO_SetPinMode(gpio, pin_ll,
+							LL_GPIO_MODE_ALTERNATE);
+		}
+
+		temp = conf & (STM32_CNF_OUT_0_MASK << STM32_CNF_OUT_0_SHIFT);
+
+		if (temp == STM32_CNF_PUSH_PULL) {
+			LL_GPIO_SetPinOutputType(gpio, pin_ll,
+						       LL_GPIO_OUTPUT_PUSHPULL);
+		} else {
+			LL_GPIO_SetPinOutputType(gpio, pin_ll,
+						      LL_GPIO_OUTPUT_OPENDRAIN);
+		}
+
+		temp = conf &
+			    (STM32_MODE_OSPEED_MASK << STM32_MODE_OSPEED_SHIFT);
+
+		if (temp == STM32_MODE_OUTPUT_MAX_2) {
+			LL_GPIO_SetPinSpeed(gpio, pin_ll,
+							LL_GPIO_SPEED_FREQ_LOW);
+		} else if (temp == STM32_MODE_OUTPUT_MAX_10) {
+			LL_GPIO_SetPinSpeed(gpio, pin_ll,
+						     LL_GPIO_SPEED_FREQ_MEDIUM);
+		} else {
+			LL_GPIO_SetPinSpeed(gpio, pin_ll,
+						       LL_GPIO_SPEED_FREQ_HIGH);
+		}
+	}
+#else
 	unsigned int mode, otype, ospeed, pupd;
 
 	mode = conf & (STM32_MODER_MASK << STM32_MODER_SHIFT);
 	otype = conf & (STM32_OTYPER_MASK << STM32_OTYPER_SHIFT);
 	ospeed = conf & (STM32_OSPEEDR_MASK << STM32_OSPEEDR_SHIFT);
 	pupd = conf & (STM32_PUPDR_MASK << STM32_PUPDR_SHIFT);
+
+	z_stm32_hsem_lock(CFG_HW_GPIO_SEMID, HSEM_LOCK_DEFAULT_RETRY);
+
+#if defined(CONFIG_SOC_SERIES_STM32L4X) && defined(GPIO_ASCR_ASC0)
+	/*
+	 * For STM32L47xx/48xx, register ASCR should be configured to connect
+	 * analog switch of gpio lines to the ADC.
+	 */
+	if (mode == STM32_MODER_ANALOG_MODE) {
+		LL_GPIO_EnablePinAnalogControl(gpio, pin_ll);
+	}
+#endif
 
 	LL_GPIO_SetPinOutputType(gpio, pin_ll, otype >> STM32_OTYPER_SHIFT);
 
@@ -169,6 +256,10 @@ static void gpio_stm32_configure_raw(const struct device *dev, int pin,
 	}
 
 	LL_GPIO_SetPinMode(gpio, pin_ll, mode >> STM32_MODER_SHIFT);
+
+	z_stm32_hsem_unlock(CFG_HW_GPIO_SEMID);
+#endif  /* CONFIG_SOC_SERIES_STM32F1X */
+
 }
 
 /**
@@ -306,7 +397,7 @@ static int gpio_stm32_enable_int(int port, int pin)
 #endif
 
 	gpio_stm32_set_exti_source(port, pin);
-#endif // 0
+#endif
 	return 0;
 }
 
@@ -328,8 +419,12 @@ static int gpio_stm32_port_set_masked_raw(const struct device *dev,
 	GPIO_TypeDef *gpio = (GPIO_TypeDef *)cfg->base;
 	uint32_t port_value;
 
+	z_stm32_hsem_lock(CFG_HW_GPIO_SEMID, HSEM_LOCK_DEFAULT_RETRY);
+
 	port_value = LL_GPIO_ReadOutputPort(gpio);
 	LL_GPIO_WriteOutputPort(gpio, (port_value & ~mask) | (mask & value));
+
+	z_stm32_hsem_unlock(CFG_HW_GPIO_SEMID);
 
 	return 0;
 }
@@ -355,8 +450,16 @@ static int gpio_stm32_port_clear_bits_raw(const struct device *dev,
 	const struct gpio_stm32_config *cfg = dev->config;
 	GPIO_TypeDef *gpio = (GPIO_TypeDef *)cfg->base;
 
+#ifdef CONFIG_SOC_SERIES_STM32F1X
+	/*
+	 * On F1 series, using LL API requires a costly pin mask translation.
+	 * Skip it and use CMSIS API directly.
+	 */
+	WRITE_REG(gpio->BRR, pins);
+#else
 	/* On other series, LL abstraction is needed  */
 	LL_GPIO_ResetOutputPin(gpio, pins);
+#endif
 
 	return 0;
 }
@@ -371,12 +474,18 @@ static int gpio_stm32_port_toggle_bits(const struct device *dev,
 	 * On F1 series, using LL API requires a costly pin mask translation.
 	 * Skip it and use CMSIS API directly. Valid also on other series.
 	 */
+	z_stm32_hsem_lock(CFG_HW_GPIO_SEMID, HSEM_LOCK_DEFAULT_RETRY);
 	WRITE_REG(gpio->ODR, READ_REG(gpio->ODR) ^ pins);
+	z_stm32_hsem_unlock(CFG_HW_GPIO_SEMID);
 
 	return 0;
 }
 
+#ifdef CONFIG_SOC_SERIES_STM32F1X
+#define IS_GPIO_OUT GPIO_OUT
+#else
 #define IS_GPIO_OUT STM32_GPIO
+#endif
 
 int gpio_bluenrg_configure(const struct device *dev, int pin, int conf, int func)
 {
@@ -477,9 +586,9 @@ static int gpio_stm32_get_config(const struct device *dev,
 #endif /* CONFIG_GPIO_GET_CONFIG */
 
 static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
-						gpio_pin_t pin,
-						enum gpio_int_mode mode,
-						enum gpio_int_trig trig)
+					      gpio_pin_t pin,
+					      enum gpio_int_mode mode,
+					      enum gpio_int_trig trig)
 {
 	int err = 0;
 #if 0 // To be implemented	  
@@ -530,6 +639,9 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 	case GPIO_INT_TRIG_BOTH:
 		edge = STM32_EXTI_TRIG_BOTH;
 		break;
+	default:
+		err = -EINVAL;
+		goto exit;
 	}
 
 	stm32_exti_trigger(pin, edge);
@@ -603,6 +715,14 @@ static int gpio_stm32_init(const struct device *dev)
 		return -ENODEV;
 	}
 
+#if (defined(PWR_CR2_IOSV) || defined(PWR_SVMCR_IO2SV)) && \
+	DT_NODE_HAS_STATUS(DT_NODELABEL(gpiog), okay)
+	z_stm32_hsem_lock(CFG_HW_RCC_SEMID, HSEM_LOCK_DEFAULT_RETRY);
+	/* Port G[15:2] requires external power supply */
+	/* Cf: L4/L5 RM, Chapter "Independent I/O supply rail" */
+	LL_PWR_EnableVddIO2();
+	z_stm32_hsem_unlock(CFG_HW_RCC_SEMID);
+#endif
 	/* enable port clock (if runtime PM is not enabled) */
 	ret = gpio_stm32_clock_request(dev, !IS_ENABLED(CONFIG_PM_DEVICE_RUNTIME));
 	if (ret < 0) {
