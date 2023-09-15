@@ -19,6 +19,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/clock_control/bluenrg_clock_control.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/drivers/interrupt_controller/exti_stm32.h>
 #include <zephyr/pm/device.h>
 #include <zephyr/pm/device_runtime.h>
 
@@ -302,73 +303,11 @@ static inline uint32_t gpio_stm32_pin_to_exti_line(int pin)
 #endif
 }
 
-static void gpio_stm32_set_exti_source(int port, int pin)
-{
-#if 0
-	uint32_t line = gpio_stm32_pin_to_exti_line(pin);
-
-#if defined(CONFIG_SOC_SERIES_STM32L0X) && defined(LL_SYSCFG_EXTI_PORTH)
-	/*
-	 * Ports F and G are not present on some STM32L0 parts, so
-	 * for these parts port H external interrupt should be enabled
-	 * by writing value 0x5 instead of 0x7.
-	 */
-	if (port == STM32_PORTH) {
-		port = LL_SYSCFG_EXTI_PORTH;
-	}
-#endif
-
-	z_stm32_hsem_lock(CFG_HW_EXTI_SEMID, HSEM_LOCK_DEFAULT_RETRY);
-
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	LL_GPIO_AF_SetEXTISource(port, line);
-
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32g0_exti)
-	LL_EXTI_SetEXTISource(port, line);
-#else
-	LL_SYSCFG_SetEXTISource(port, line);
-#endif
-	z_stm32_hsem_unlock(CFG_HW_EXTI_SEMID);
-#endif
-}
-
-static int gpio_stm32_get_exti_source(int pin)
-{
-#if 0
-	uint32_t line = gpio_stm32_pin_to_exti_line(pin);
-	int port;
-
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	port = LL_GPIO_AF_GetEXTISource(line);
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32g0_exti)
-	port = LL_EXTI_GetEXTISource(line);
-#else
-	port = LL_SYSCFG_GetEXTISource(line);
-#endif
-
-#if defined(CONFIG_SOC_SERIES_STM32L0X) && defined(LL_SYSCFG_EXTI_PORTH)
-	/*
-	 * Ports F and G are not present on some STM32L0 parts, so
-	 * for these parts port H external interrupt is enabled
-	 * by writing value 0x5 instead of 0x7.
-	 */
-	if (port == LL_SYSCFG_EXTI_PORTH) {
-		port = STM32_PORTH;
-	}
-#endif
-
-	return port;
-#else
-	return 0;
-#endif
-}
-
 /**
  * @brief Enable EXTI of the specific line
  */
 static int gpio_stm32_enable_int(int port, int pin)
 {
-# if 0
 #if defined(CONFIG_SOC_SERIES_STM32F2X) ||     \
 	defined(CONFIG_SOC_SERIES_STM32F3X) || \
 	defined(CONFIG_SOC_SERIES_STM32F4X) || \
@@ -394,9 +333,6 @@ static int gpio_stm32_enable_int(int port, int pin)
 	if (ret != 0) {
 		return ret;
 	}
-#endif
-
-	gpio_stm32_set_exti_source(port, pin);
 #endif
 	return 0;
 }
@@ -590,11 +526,10 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 					      enum gpio_int_mode mode,
 					      enum gpio_int_trig trig)
 {
-	int err = 0;
-#if 0 // To be implemented	  
 	const struct gpio_stm32_config *cfg = dev->config;
 	struct gpio_stm32_data *data = dev->data;
 	int edge = 0;
+	int err = 0;
 
 #ifdef CONFIG_GPIO_ENABLE_DISABLE_INTERRUPT
 	if (mode == GPIO_INT_MODE_DISABLE_ONLY) {
@@ -607,13 +542,9 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 #endif /* CONFIG_GPIO_ENABLE_DISABLE_INTERRUPT */
 
 	if (mode == GPIO_INT_MODE_DISABLED) {
-		if (gpio_stm32_get_exti_source(pin) == cfg->port) {
-			stm32_exti_disable(pin);
-			stm32_exti_unset_callback(pin);
-			stm32_exti_trigger(pin, STM32_EXTI_TRIG_NONE);
-		}
-		/* else: No irq source configured for pin. Nothing to disable */
-		goto exit;
+	        stm32_exti_disable(pin);
+		stm32_exti_unset_callback(pin);
+		stm32_exti_trigger(pin, STM32_EXTI_TRIG_NONE);
 	}
 
 	/* Level trigger interrupts not supported */
@@ -649,7 +580,6 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 	stm32_exti_enable(pin);
 
 exit:
-#endif // To be implemented
 	return err;
 }
 
