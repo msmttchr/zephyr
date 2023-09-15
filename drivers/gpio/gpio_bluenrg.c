@@ -19,6 +19,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/clock_control/bluenrg_clock_control.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/drivers/interrupt_controller/exti_stm32.h>
 #include <zephyr/pm/device.h>
 #include <zephyr/pm/device_runtime.h>
 
@@ -290,7 +291,7 @@ static int gpio_stm32_clock_request(const struct device *dev, bool on)
 	return ret;
 }
 
-static inline uint32_t gpio_stm32_pin_to_exti_line(int pin)
+static inline uint32_t gpio_stm32_pin_to_exti_line(int port, int pin)
 {
 #if defined(CONFIG_SOC_SERIES_STM32L0X) || \
 	defined(CONFIG_SOC_SERIES_STM32F0X)
@@ -298,68 +299,7 @@ static inline uint32_t gpio_stm32_pin_to_exti_line(int pin)
 #elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32g0_exti)
 	return ((pin & 0x3) << (16 + 3)) | (pin >> 2);
 #else
-	return (0xF << ((pin % 4 * 4) + 16)) | (pin / 4);
-#endif
-}
-
-static void gpio_stm32_set_exti_source(int port, int pin)
-{
-#if 0
-	uint32_t line = gpio_stm32_pin_to_exti_line(pin);
-
-#if defined(CONFIG_SOC_SERIES_STM32L0X) && defined(LL_SYSCFG_EXTI_PORTH)
-	/*
-	 * Ports F and G are not present on some STM32L0 parts, so
-	 * for these parts port H external interrupt should be enabled
-	 * by writing value 0x5 instead of 0x7.
-	 */
-	if (port == STM32_PORTH) {
-		port = LL_SYSCFG_EXTI_PORTH;
-	}
-#endif
-
-	z_stm32_hsem_lock(CFG_HW_EXTI_SEMID, HSEM_LOCK_DEFAULT_RETRY);
-
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	LL_GPIO_AF_SetEXTISource(port, line);
-
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32g0_exti)
-	LL_EXTI_SetEXTISource(port, line);
-#else
-	LL_SYSCFG_SetEXTISource(port, line);
-#endif
-	z_stm32_hsem_unlock(CFG_HW_EXTI_SEMID);
-#endif
-}
-
-static int gpio_stm32_get_exti_source(int pin)
-{
-#if 0
-	uint32_t line = gpio_stm32_pin_to_exti_line(pin);
-	int port;
-
-#ifdef CONFIG_SOC_SERIES_STM32F1X
-	port = LL_GPIO_AF_GetEXTISource(line);
-#elif DT_HAS_COMPAT_STATUS_OKAY(st_stm32g0_exti)
-	port = LL_EXTI_GetEXTISource(line);
-#else
-	port = LL_SYSCFG_GetEXTISource(line);
-#endif
-
-#if defined(CONFIG_SOC_SERIES_STM32L0X) && defined(LL_SYSCFG_EXTI_PORTH)
-	/*
-	 * Ports F and G are not present on some STM32L0 parts, so
-	 * for these parts port H external interrupt is enabled
-	 * by writing value 0x5 instead of 0x7.
-	 */
-	if (port == LL_SYSCFG_EXTI_PORTH) {
-		port = STM32_PORTH;
-	}
-#endif
-
-	return port;
-#else
-	return 0;
+	return (port*16 + pin);
 #endif
 }
 
@@ -368,24 +308,10 @@ static int gpio_stm32_get_exti_source(int pin)
  */
 static int gpio_stm32_enable_int(int port, int pin)
 {
-# if 0
-#if defined(CONFIG_SOC_SERIES_STM32F2X) ||     \
-	defined(CONFIG_SOC_SERIES_STM32F3X) || \
-	defined(CONFIG_SOC_SERIES_STM32F4X) || \
-	defined(CONFIG_SOC_SERIES_STM32F7X) || \
-	defined(CONFIG_SOC_SERIES_STM32H7X) || \
-	defined(CONFIG_SOC_SERIES_STM32L1X) || \
-	defined(CONFIG_SOC_SERIES_STM32L4X) || \
-	defined(CONFIG_SOC_SERIES_STM32G4X)
 	const struct device *const clk = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
 	struct stm32_pclken pclken = {
-#ifdef CONFIG_SOC_SERIES_STM32H7X
-		.bus = STM32_CLOCK_BUS_APB4,
-		.enr = LL_APB4_GRP1_PERIPH_SYSCFG
-#else
-		.bus = STM32_CLOCK_BUS_APB2,
-		.enr = LL_APB2_GRP1_PERIPH_SYSCFG
-#endif /* CONFIG_SOC_SERIES_STM32H7X */
+		.bus = BLUENRG_CLOCK_BUS_APB0,
+		.enr = BIT(8)
 	};
 	int ret;
 
@@ -394,10 +320,6 @@ static int gpio_stm32_enable_int(int port, int pin)
 	if (ret != 0) {
 		return ret;
 	}
-#endif
-
-	gpio_stm32_set_exti_source(port, pin);
-#endif
 	return 0;
 }
 
@@ -529,9 +451,11 @@ static int gpio_stm32_config(const struct device *dev,
 	}
 
 	/* Enable device clock before configuration (requires bank writes) */
-	err = pm_device_runtime_get(dev);
-	if (err < 0) {
-		return err;
+	if (((flags & GPIO_OUTPUT) != 0) || ((flags & GPIO_INPUT) != 0)) {
+		err = pm_device_runtime_get(dev);
+		if (err < 0) {
+			return err;
+		}
 	}
 
 	if ((flags & GPIO_OUTPUT) != 0) {
@@ -590,30 +514,26 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 					      enum gpio_int_mode mode,
 					      enum gpio_int_trig trig)
 {
-	int err = 0;
-#if 0 // To be implemented	  
 	const struct gpio_stm32_config *cfg = dev->config;
 	struct gpio_stm32_data *data = dev->data;
 	int edge = 0;
+	int err = 0;
+	int line = gpio_stm32_pin_to_exti_line(cfg->port, pin);
 
 #ifdef CONFIG_GPIO_ENABLE_DISABLE_INTERRUPT
 	if (mode == GPIO_INT_MODE_DISABLE_ONLY) {
-		stm32_exti_disable(pin);
+		stm32_exti_disable(line);
 		goto exit;
 	} else if (mode == GPIO_INT_MODE_ENABLE_ONLY) {
-		stm32_exti_enable(pin);
+		stm32_exti_enable(line);
 		goto exit;
 	}
 #endif /* CONFIG_GPIO_ENABLE_DISABLE_INTERRUPT */
 
 	if (mode == GPIO_INT_MODE_DISABLED) {
-		if (gpio_stm32_get_exti_source(pin) == cfg->port) {
-			stm32_exti_disable(pin);
-			stm32_exti_unset_callback(pin);
-			stm32_exti_trigger(pin, STM32_EXTI_TRIG_NONE);
-		}
-		/* else: No irq source configured for pin. Nothing to disable */
-		goto exit;
+	        stm32_exti_disable(line);
+		stm32_exti_unset_callback(line);
+		stm32_exti_trigger(line, STM32_EXTI_TRIG_NONE);
 	}
 
 	/* Level trigger interrupts not supported */
@@ -622,12 +542,10 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 		goto exit;
 	}
 
-	if (stm32_exti_set_callback(pin, gpio_stm32_isr, data) != 0) {
+	if (stm32_exti_set_callback(line, gpio_stm32_isr, data) != 0) {
 		err = -EBUSY;
 		goto exit;
 	}
-
-	gpio_stm32_enable_int(cfg->port, pin);
 
 	switch (trig) {
 	case GPIO_INT_TRIG_LOW:
@@ -644,12 +562,13 @@ static int gpio_stm32_pin_interrupt_configure(const struct device *dev,
 		goto exit;
 	}
 
-	stm32_exti_trigger(pin, edge);
+	gpio_stm32_enable_int(cfg->port, pin);
 
-	stm32_exti_enable(pin);
+	stm32_exti_trigger(line, edge);
+
+	stm32_exti_enable(line);
 
 exit:
-#endif // To be implemented
 	return err;
 }
 
@@ -729,7 +648,9 @@ static int gpio_stm32_init(const struct device *dev)
 		return ret;
 	}
 
-	pm_device_init_suspended(dev);
+	if (IS_ENABLED(CONFIG_PM_DEVICE_RUNTIME)) {
+		pm_device_init_suspended(dev);
+	}
 	(void)pm_device_runtime_enable(dev);
 
 	return 0;

@@ -12,9 +12,9 @@
 
 #include <zephyr/drivers/clock_control.h>
 
-#if CONFIG_DEVICE_BLUENRG_LP
+#if defined(CONFIG_SOC_SERIES_BLUENRG_3)
 #include <zephyr/dt-bindings/clock/bluenrg_lp_clock.h>
-#endif
+#endif /* CONFIG_SOC_SERIES_BLUENRG_3 */
 
 /** Common clock control device node for all STM32 chips */
 #define STM32_CLOCK_CONTROL_NODE DT_NODELABEL(rcc)
