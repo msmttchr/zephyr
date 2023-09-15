@@ -126,7 +126,19 @@
             };
         };
 
-    
+		// Fake EXIT actually implemented with SYSCFG
+		exti: interrupt-controller@0 {
+			compatible = "st,stm32-exti";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			reg = <0x0 0x400>;
+			num-lines = <32>;
+			interrupts = <15 0>, <16 0>;
+			interrupt-names = "line0-15", "line16-31";
+			line-ranges = <0 16>, <1 16>;
+		};
+
         // interrupt & clocks à vérif
         usart1: serial@41004000 {
             compatible = "st,stm32-usart", "st,stm32-uart";
