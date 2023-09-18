@@ -1,0 +1,38 @@
+# ST Microelectronics STM32 MCUs Flash driver config
+
+# Copyright (c) 2016 RnDity Sp. z o.o.
+# Copyright (c) 2017 BayLibre, SAS
+# Copyright (c) 2022 Linaro Limited
+# Copyright (c) 2023 Google Inc
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_FLASH_BLUENRG
+	bool "BLUENRG flash driver"
+	depends on (DT_HAS_ST_STM32_FLASH_CONTROLLER_ENABLED || \
+		   DT_HAS_ST_STM32H7_FLASH_CONTROLLER_ENABLED) && SOC_SERIES_BLUENRG_3
+	select FLASH_HAS_DRIVER_ENABLED
+	default y
+	select FLASH_PAGE_LAYOUT
+	select FLASH_HAS_PAGE_LAYOUT
+	select FLASH_HAS_EX_OP
+	select MPU_ALLOW_FLASH_WRITE if ARM_MPU
+	help
+	  Enable flash driver for BLUENRG-3 series
+
+if SOC_FLASH_BLUENRG
+
+config FLASH_STM32_WRITE_PROTECT
+	bool "Extended operation for flash write protection control"
+	default n
+	help
+	  Enables flash extended operation for enabling/disabling flash write
+	  protection.
+
+config FLASH_STM32_READOUT_PROTECTION
+	bool "Extended operation for flash readout protection control"
+	default n
+	help
+	  Enables flash extended operation for enabling/disabling flash readout
+	  protection.
+
+endif # SOC_FLASH_BLUENRG
