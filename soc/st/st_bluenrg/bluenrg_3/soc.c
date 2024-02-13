@@ -104,10 +104,12 @@ static uint8_t SetTrimConfig(void)
   return ret_val;
 }
 
-NO_INIT_SECTION(REQUIRED(RAM_VR_TypeDef RAM_VR), "RAM_VR_section");
-NO_INIT_SECTION(REQUIRED(static uint32_t fill_gap[36]), "FILL_GAP_section");
-SECTION("BLUE_RAM_section")
-REQUIRED(uint8_t __blue_RAM[1*80+28]) = {0,};
+Z_GENERIC_SECTION("RAM_VR_section")
+RAM_VR_TypeDef __used RAM_VR;
+Z_GENERIC_SECTION("FILL_GAP_section")
+static uint32_t __used fill_gap[36];
+Z_GENERIC_SECTION("BLUE_RAM_section")
+uint8_t __used __blue_RAM[CONFIG_NUM_MAX_LINKS*80+28] = {0,}; /* TBD_st The value 80 changes to 92 for LPS. Do it with DTS */
 extern void * _vector_table;
 
 /**
