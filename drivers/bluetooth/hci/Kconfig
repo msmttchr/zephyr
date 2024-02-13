@@ -68,6 +68,12 @@ config BT_STM32WBA
 	help
 	  ST STM32WBA HCI Bluetooth interface
 
+config BT_STM32WB0
+	bool "STM32WB0x (BlueNRG-LPx) HCI driver"
+#	select HAS_STM32LIB
+	help
+	  ST STM32WB0x (BlueNRG-LPx) HCI Bluetooth interface
+
 config BT_SILABS_HCI
 	bool "Silicon Labs Bluetooth interface"
 	depends on SOC_SERIES_EFR32BG22 || SOC_SERIES_EFR32MG24 || SOC_SERIES_EFR32BG27
@@ -214,7 +220,7 @@ config BT_HCI_SETUP
 
 config BT_DRV_TX_STACK_SIZE
 	int
-	default 256
+	default 512
 	help
 	  Stack size for the HCI driver's TX thread.
 
@@ -223,7 +229,7 @@ config BT_DRV_RX_STACK_SIZE
 	default 640 if (BT_SPI || BT_AMBIQ_HCI)
 	default BT_RX_STACK_SIZE if (BT_H4 || BT_HCI_RAW_H4)
 	default BT_STM32_IPM_RX_STACK_SIZE if BT_STM32_IPM
-	default 256
+	default 512
 	help
 	  Stack size for the HCI driver's RX thread.
 
