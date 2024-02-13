@@ -24,7 +24,7 @@ manifest:
     - name: babblesim
       url-base: https://github.com/BabbleSim
     - name: bluenrg_hal
-      url-base: https://github.com/msmttchr
+      url-base: https://github.com/HoZHel
 
   group-filter: [-babblesim, -optional]
 
@@ -236,7 +236,7 @@ manifest:
       groups:
         - hal
     - name: hal_bluenrg
-      revision: d94022c7423fb1c0093d9f4a4ee2e63086e5ff1a
+      revision: 910b320d687d048b41e2d1a27a15603f5931fda6
       path: modules/hal/st_bluenrg
       remote: bluenrg_hal
       groups:
