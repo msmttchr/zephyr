@@ -45,57 +45,57 @@ static uint8_t SetTrimConfig(void)
   uint8_t ret_val=SUCCESS;
   uint32_t main_regulator, smps_out_voltage, lsi_bw, hsi_calib;
   uint8_t eng_lsi_bw_flag;
-#ifdef CONFIG_DEVICE_BLUENRG_LP
+#ifdef CONFIG_SOC_BLUENRG_LP
   uint32_t lsi_lpmu;
-#endif /* CONFIG_DEVICE_BLUENRG_LP */
+#endif /* CONFIG_SOC_BLUENRG_LP */
 
   /* Retrieve Trimming values from engineering flash locations */
   if (*(volatile uint32_t*)VALIDITY_LOCATION == VALIDITY_TAG) {
     main_regulator    = ((*(volatile uint32_t*)TRIMMING_LOCATION) & MAIN_REGULATOR_TRIM_Msk) >> MAIN_REGULATOR_TRIM_Pos;
     smps_out_voltage  = ((*(volatile uint32_t*)TRIMMING_LOCATION) & SMPS_TRIM_Msk) >> SMPS_TRIM_Pos;
-#ifdef CONFIG_DEVICE_BLUENRG_LP
+#ifdef CONFIG_SOC_BLUENRG_LP
     lsi_lpmu          = ((*(volatile uint32_t*)TRIMMING_LOCATION) & LSI_LPMU_TRIM_Msk) >> LSI_LPMU_TRIM_Pos;
-#endif /* CONFIG_DEVICE_BLUENRG_LP */
+#endif /* CONFIG_SOC_BLUENRG_LP */
     lsi_bw            = ((*(volatile uint32_t*)TRIMMING_LOCATION) & LSI_BW_TRIM_Msk) >> LSI_BW_TRIM_Pos;
     hsi_calib         = ((*(volatile uint32_t*)TRIMMING_LOCATION) & HSI_TRIM_Msk) >> HSI_TRIM_Pos;
     eng_lsi_bw_flag   = TRUE;
   } else {
-#ifdef CONFIG_DEVICE_BLUENRG_LP
+#if defined(CONFIG_SOC_BLUENRG_LP)
     main_regulator    = 0x08;
     lsi_lpmu          = 0x08;
     hsi_calib         = 0x1E;
     eng_lsi_bw_flag   = FALSE;
-#endif
-#if defined(CONFIG_DEVICE_BLUENRG_LPS)
+
+#elif defined(CONFIG_SOC_BLUENRG_LPS)
     main_regulator    = 0x0A;
     hsi_calib         = 0x1F;
     lsi_bw            = 8;
     eng_lsi_bw_flag   = TRUE;
-#endif
+#endif /* CONFIG_SOC_BLUENRG_LP */
     smps_out_voltage  = 0x03;
   }
-  
+
   /* Set HSI Calibration Trimming value */
   LL_RCC_HSI_SetCalibTrimming(hsi_calib);
 
   /* Low speed internal RC trimming value set by software */
   if (eng_lsi_bw_flag)
     LL_RCC_LSI_SetTrimming(lsi_bw);
-  
-#ifdef CONFIG_DEVICE_BLUENRG_LP
+
+#ifdef CONFIG_SOC_BLUENRG_LP
   /* Set LSI LPMU Trimming value */
   LL_PWR_SetLSILPMUTrim(lsi_lpmu);
-#endif /* CONFIG_DEVICE_BLUENRG_LP */
+#endif /* CONFIG_SOC_BLUENRG_LP */
 	
   /* Set Main Regulator voltage Trimming value */ 
   LL_PWR_SetMRTrim(main_regulator);
 
   /* Set SMPS output voltage Trimming value */
   LL_PWR_SetSMPSTrim(smps_out_voltage);
-  
+
   /* Set SMPS in LP Open */
   LL_PWR_SetSMPSOpenMode(LL_PWR_SMPS_LPOPEN);
-  
+
 #ifdef CONFIG_HW_SMPS_NONE
   /* No SMPS configuration */
   LL_PWR_SetSMPSMode(LL_PWR_NO_SMPS);
@@ -109,7 +109,18 @@ RAM_VR_TypeDef __used RAM_VR;
 Z_GENERIC_SECTION("FILL_GAP_section")
 static uint32_t __used fill_gap[36];
 Z_GENERIC_SECTION("BLUE_RAM_section")
-uint8_t __used __blue_RAM[CONFIG_NUM_MAX_LINKS*80+28] = {0,}; /* TBD_st The value 80 changes to 92 for LPS. Do it with DTS */
+
+#if defined(CONFIG_SOC_BLUENRG_LP)
+uint8_t __used __blue_RAM[CONFIG_NUM_MAX_LINKS*80+28] = {0,}; /* TBD_st Do it with DTS??? */
+
+#elif defined(CONFIG_SOC_BLUENRG_LPS) || defined(CONFIG_SOC_BLUENRG_LPF)
+uint8_t __used __blue_RAM[CONFIG_NUM_MAX_LINKS*92+28] = {0,};
+
+#else
+#error "Unknown device"
+
+#endif /* CONFIG_SOC_BLUENRG_LP */
+
 extern void * _vector_table;
 
 /**
@@ -137,7 +148,7 @@ static int bluenrg_init(void)
 #if defined(LL_PWR_RAMRET_3)
 	LL_PWR_EnableRAMBankRet(LL_PWR_RAMRET_3);
 #endif
-  
+
 #if defined(PWR_CR2_GPIORET)
       /* Disable the GPIO retention in DEEPSTOP configuration */
       LL_PWR_DisableGPIORET();
