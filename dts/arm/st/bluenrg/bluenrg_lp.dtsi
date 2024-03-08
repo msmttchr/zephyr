@@ -32,23 +32,23 @@
             reg = <0>;
         };
     };
-     // sram0 : ok
+
     sram0: memory@20000000 {
-        device_type = "memory";
+        device_type = "mmio-sram";
         reg = <0x20000000 DT_SIZE_K(64)>;
     };
  
     clocks {
-        clk_hse: clk-hse {
+        clk_hsi: clk-hsi {
             #clock-cells = <0>;
-            compatible = "st,stm32-hse-clock";
+            compatible = "fixed-factor-clock";
+		    clock-div = <4>;
             status = "disabled";
         };
 
-        clk_hsi: clk-hsi {
+        clk_hse: clk-hse {
             #clock-cells = <0>;
-            compatible = "fixed-clock";
-            clock-frequency = <32000000>;
+            compatible = "st,stm32-hse-clock";
             status = "disabled";
         };
 
@@ -63,7 +63,7 @@
         clk_lsi: clk-lsi {
             #clock-cells = <0>;
             compatible = "fixed-clock";
-            clock-frequency = <37000>;
+            clock-frequency = <33000>;
             status = "disabled";
         };
 
@@ -138,32 +138,9 @@
             status = "disabled";
         };
 
-        // // adc1 : clocks & io-channel à vérif
-        // adc1: adc@41006000 {
-        //     compatible = "st,bluenrg_lp-adc";
-        //     reg = <0x41006000 0x100>;
-        //     //clocks = <&rcc BLUENRG_LP_CLOCK_PERIPH_ADC>;
-        //     interrupts = <12 0>;
-        //     status = "disabled";
-        //     label = "ADC1";
-        //     #io-channel-cells = <1>;
-        // };
-
-        // // clocks & add & size-cells à vérif
-        // spi1: spi@41002000 {
-        //     compatible = "st,bluenrg_lp-spi";
-        //     #address-cells = <1>;
-        //     #size-cells = <0>;
-        //     reg = <0x41002000 DT_SIZE_K(1)>;
-        //     //clocks = <&rcc BLUENRG_LP_CLOCK_PERIPH_SPI>;
-        //     interrupts = <5 0>;
-        //     status = "disabled";
-        //     label = "SPI1";
-        // };
     };
 };
  
-// nvic : ok
 &nvic {
     arm,num-irq-priority-bits = <2>;
 };
