@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Zephyr Kernel Configuration
-CONFIG_SOC_SERIES_BLUENRG=y
+CONFIG_SOC_SERIES_BLUENRG_3=y
 
 # Platform Configuration
 CONFIG_SOC_BLUENRG_LP=y
