@@ -28,16 +28,10 @@
 
 /* Add include for DTS generated information */
 //#include <devicetree.h>
+#include <rf_driver_ll_flash.h>
 #include <rf_driver_ll_rcc.h>
 #include <rf_driver_ll_pwr.h>
-#include <rf_driver_ll_flash.h>
-#include <rf_driver_ll_gpio.h>
-#include <rf_driver_ll_usart.h>
-#include <rf_driver_ll_utils.h>
-#include <rf_driver_ll_bus.h>
-#include <rf_driver_hal_gpio.h>
-#include <rf_driver_hal_uart.h>
-#include <system_BlueNRG_LP.h>
+#include <rf_driver_ll_system.h>
 //#include <misc.h>
 #endif /* _BLUENRG_LP_SOC_H_ */
 

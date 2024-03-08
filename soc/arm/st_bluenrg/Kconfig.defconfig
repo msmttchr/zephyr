@@ -1,36 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
+if SOC_FAMILY_BLUENRG
 source "soc/arm/st_bluenrg/*/Kconfig.defconfig.series"
 
+# ???
+#config PINCTRL
+#    default y
 
-
-#Copyright (c) 2019 Lexmark International, Inc.
-# Copyright (c) 2019 Stephanos Ioannidis <root@stephanos.io>
-# SPDX-License-Identifier: Apache-2.0
-
-# if SOC_BLUENRG_LP
-
-# config SOC
-# 	default "bluenrg_lp"
-
-# config NUM_IRQS
-# 	default 32
-
-# config NUM_GPIOS
-# 	default 32
-
-# config PINMUX_BLUENRG_LP
-# 	bool
-# 	default n
-# 	depends on PINMUX
-
-# config UART_BLUENRG_LP
-# 	bool
-# 	default n
-# 	depends on SERIAL
-
-# config SPI_BLUENRG_LP
-# 	bool
-# 	default n
-	
-# endif # SOC_BLUENRG_LP
+endif
