@@ -3,4 +3,4 @@
 # Copyright (c) 2016 Open-RnD Sp. z o.o.
 # SPDX-License-Identifier: Apache-2.0
 
-source "soc/arm/st_bluenrg/*/Kconfig.series"
+source "soc/st/st_bluenrg/*/Kconfig.series"
