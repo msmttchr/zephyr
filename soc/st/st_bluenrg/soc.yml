@@ -1,0 +1,6 @@
+family:
+- name: st_bluenrg
+  series:
+  - name: bluenrg_3
+    socs:
+    - name: bluenrg_lp

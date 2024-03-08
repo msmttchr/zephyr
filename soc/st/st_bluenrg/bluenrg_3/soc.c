@@ -37,6 +37,9 @@
 #define HSI_TRIM_Pos            (16)
 #define HSI_TRIM_Msk            (0x3F << HSI_TRIM_Pos)
 
+#ifndef CONFIG_NUM_MAX_LINKS
+#define CONFIG_NUM_MAX_LINKS 0
+#endif
 /**
   * @brief  SMPS and Trimming value Configuration 
   */
