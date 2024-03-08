@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 if SOC_FAMILY_BLUENRG
-source "soc/arm/st_bluenrg/*/Kconfig.defconfig.series"
+source "soc/st/st_bluenrg/*/Kconfig.defconfig.series"
 
 # ???
 #config PINCTRL

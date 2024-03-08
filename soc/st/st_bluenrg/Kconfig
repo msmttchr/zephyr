@@ -12,6 +12,6 @@ config SOC_FAMILY
 	string
 	default "st_bluenrg"
 
-source "soc/arm/st_bluenrg/*/Kconfig.soc"
+source "soc/st/st_bluenrg/*/Kconfig.soc"
 
 endif # SOC_FAMILY_BLUENRG
