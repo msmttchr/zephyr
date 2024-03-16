@@ -19,6 +19,7 @@
  / {
 
     chosen {
+       zephyr,entropy = &rng;
        zephyr,flash-controller = &flash;
     };
 
@@ -155,6 +156,12 @@
             status = "disabled";
         };
 
+	rng: rng@48600000 {
+		compatible = "st,stm32-rng";
+		reg = <0x48600000 0x400>;
+		clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00040000>;
+		status = "disabled";
+	};
     };
 };
  
