@@ -63,6 +63,13 @@ config HWINFO_STM32
 	help
 	  Enable STM32 hwinfo driver.
 
+config HWINFO_BLUENRG
+	bool "BlueNRG hwinfo"
+	default y
+	depends on SOC_FAMILY_BLUENRG
+	help
+	  Enable BlueNRG hwinfo driver.
+
 config HWINFO_NRF
 	bool "NRF device ID"
 	default y
