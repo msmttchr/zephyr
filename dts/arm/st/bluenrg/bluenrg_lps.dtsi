@@ -1,0 +1,164 @@
+/*
+ * Copyright (c) 2024 STMicroelectronics
+ * Copyright (c) 2019 Linaro Limited
+ * Copyright (c) 2019 Centaur Analytics, Inc
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* This file is extracted from BlueNRG2 Zephyr integration Github made by a customer
+ * It needs to be updated for BlueNRG-LPS specifications
+ */
+
+#include <mem.h>
+#include <freq.h>
+#include <arm/armv6-m.dtsi>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/clock/bluenrg_lp_clock.h>
+#include <zephyr/dt-bindings/reset/bluenrg_lp_reset.h>
+
+/ {
+	chosen {
+		zephyr,entropy = &rng;
+		zephyr,flash-controller = &flash;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-m0+";
+			reg = <0>;
+		};
+	};
+
+	sram0: memory@20000000 {
+		device_type = "mmio-sram";
+		reg = <0x20000000 DT_SIZE_K(24)>;
+	};
+
+	clocks {
+		clk_hsi: clk-hsi {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <4>;
+			status = "disabled";
+		};
+
+		clk_hse: clk-hse {
+			#clock-cells = <0>;
+			compatible = "st,stm32-hse-clock";
+			status = "disabled";
+		};
+
+		clk_lse: clk-lse {
+			#clock-cells = <0>;
+			compatible = "st,stm32-lse-clock";
+			clock-frequency = <32768>;
+			driving-capability = <0>;
+			status = "disabled";
+		};
+
+		clk_lsi: clk-lsi {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <33000>;
+			status = "disabled";
+		};
+
+		pll: pll {
+			#clock-cells = <0>;
+			compatible = "st,stm32l0-pll-clock";
+			status = "disabled";
+		};
+	};
+
+	soc {
+		flash: flash-controller@40001000 {
+			compatible = "st,stm32-flash-controller";
+			reg = <0x40001000 DT_SIZE_K(4)>;
+			interrupts = <1 0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			flash0: flash@10040000 {
+				compatible = "st,stm32-nv-flash", "soc-nv-flash";
+				write-block-size = <16>;
+				erase-block-size = <2048>;
+				/* maximum erase time(ms) for a 2K sector */
+				max-erase-time = <40>;
+				reg = <0x10040000 DT_SIZE_K(192)>;
+			};
+		};
+
+		rcc: rcc@48400000 {
+			compatible = "st,stm32-rcc";
+			#clock-cells = <2>;
+			reg = <0x48400000 0x9C>;
+
+			rctl: reset-controller {
+				compatible = "st,stm32-rcc-rctl";
+				#reset-cells = <1>;
+			};
+		};
+
+		pinctrl: pin-controller@48000000 {
+			compatible = "st,stm32-pinctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x48000000 DT_SIZE_K(2)>;
+
+			gpioa: gpio@48000000 {
+				compatible = "st,stm32-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				reg = <0x48000000 DT_SIZE_K(1)>;
+				/* AHB0 macro cells clock enable register (RCC_AHBENR) */
+				clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00000004>;
+			};
+
+			gpiob: gpio@48100000 {
+				compatible = "st,stm32-gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				reg = <0x48100000 DT_SIZE_K(1)>;
+				/* AHB0 macro cells clock enable register (RCC_AHBENR) */
+				clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00000008>;
+			};
+		};
+
+		// Fake EXIT actually implemented with SYSCFG
+		exti: interrupt-controller@0 {
+			compatible = "st,stm32-exti";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			reg = <0x0 0x400>;
+			num-lines = <32>;
+			interrupts = <15 0>, <16 0>;
+			interrupt-names = "line0-15", "line16-31";
+			line-ranges = <0 16>, <1 16>;
+		};
+
+		usart1: serial@41004000 {
+			compatible = "st,stm32-usart", "st,stm32-uart";
+			reg = <0x41004000 DT_SIZE_K(1)>;
+			clocks = <&rcc BLUENRG_CLOCK_BUS_APB1 0x00000400>;
+			resets = <&rctl BLUENRG_RESET(APB1, 10U)>; // p73/515 RM0479
+			interrupts = <8 0>;
+			status = "disabled";
+		};
+
+		rng: rng@48600000 {
+			compatible = "st,stm32-rng";
+			reg = <0x48600000 DT_SIZE_K(1)>;
+			clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00040000>;
+			status = "disabled";
+		};
+	};
+};
+
+&nvic {
+	arm,num-irq-priority-bits = <2>;
+};

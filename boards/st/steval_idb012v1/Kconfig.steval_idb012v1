@@ -1,0 +1,6 @@
+# Copyright (c) 2024 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_STEVAL_IDB012V1
+	bool "BLUENRG-LPS Evaluation Board"
+	depends on SOC_BLUENRG_LPS
