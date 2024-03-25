@@ -1,0 +1,11 @@
+# STMicroelectronics BlueNRG-LPS MCU
+
+# Copyright (c) 2024 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC
+	default "bluenrg_lps"
+	depends on SOC_BLUENRG_LPS
+
+config NUM_IRQS
+	default 32
