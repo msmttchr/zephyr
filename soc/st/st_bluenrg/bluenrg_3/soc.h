@@ -18,13 +18,17 @@
 #ifndef _BLUENRG_LP_SOC_H_
 #define _BLUENRG_LP_SOC_H_
 
-
-//#include <sys/util.h>
-
-// #ifndef _ASMLANGUAGE
-
 #include <autoconf.h>
+
+#if defined(CONFIG_SOC_BLUENRG_LP)
 #include <BlueNRG_LP.h>
+
+#elif defined(CONFIG_SOC_BLUENRG_LPS)
+#include <BlueNRG_LPS.h>
+
+#else
+	#error "Board not supported"
+#endif /* defined(CONFIG_SOC_BLUENRG_LP) */
 
 /* Add include for DTS generated information */
 //#include <devicetree.h>
@@ -35,29 +39,3 @@
 //#include <misc.h>
 #endif /* _BLUENRG_LP_SOC_H_ */
 
-
-/*
- * Copyright (c) 2018 Endre Karlson <endre.karlson@gmail.com>
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/**
- * @file SoC configuration macros for the STM32L0 family processors.
- *
- * Based on reference manual:
- *   STM32L0X advanced ARM ® -based 32-bit MCUs
- *
- * Chapter 2.2: Memory organization
- */
-
-
-// #ifndef _BLUENRG_LP_SOC_H_
-// #define _BLUENRG_LP_SOC_H_
-
-// #ifndef _ASMLANGUAGE
-
-
-// #endif /* !_ASMLANGUAGE */
-
-// #endif /* _BLUENRG_LP_SOC_H_ */
