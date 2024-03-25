@@ -1,13 +1,16 @@
-# ST Microelectronics BLUENRG MCU line
+# STMicroelectronics BLUENRG MCU line
 
 # Copyright (c) 2019 Linaro Limited
 # SPDX-License-Identifier: Apache-2.0
 
 choice
-	prompt "BLUENRG_LP MCU Selection"
+	prompt "BLUENRG_LPx MCU Selection"
 	depends on SOC_SERIES_BLUENRG_3
 
 config SOC_BLUENRG_LP
 	bool "BLUENRG-LP (BlueNRG-355)"
+
+config SOC_BLUENRG_LPS
+	bool "BLUENRG-LPS (BlueNRG-332)"
 
 endchoice
