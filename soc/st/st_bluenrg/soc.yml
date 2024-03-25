@@ -4,3 +4,4 @@ family:
   - name: bluenrg_3
     socs:
     - name: bluenrg_lp
+    - name: bluenrg_lps
