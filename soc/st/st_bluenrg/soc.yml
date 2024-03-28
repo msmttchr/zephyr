@@ -5,3 +5,4 @@ family:
     socs:
     - name: bluenrg_lp
     - name: bluenrg_lps
+    - name: bluenrg_lpf

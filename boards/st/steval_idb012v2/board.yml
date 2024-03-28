@@ -1,0 +1,5 @@
+board:
+  name: steval_idb012v2
+  vendor: st
+  socs:
+    - name: bluenrg_lpf

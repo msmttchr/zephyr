@@ -458,12 +458,12 @@ uint8_t SystemClockConfig(uint8_t SysClk)
     return ret_val;
   }
   
-#if defined(CONFIG_SOC_BLUENRG_LP) || defined(CONFIG_SOC_BLUENRG_LPS)
+#if defined(CONFIG_SOC_BLUENRG_LP)
   /* BlueNRG_LP cut 1.0 not support DIRECT HSE configuration */
   if ((SysClk == SYSCLK_DIRECT_HSE) && (((LL_SYSCFG_GetDeviceVersion()<<4)|LL_SYSCFG_GetDeviceRevision()) == LL_BLUENRG_LP_CUT_10)) {
     return SYSTEM_CONFIG_DIRECT_HSE_NOT_SUPPORTED;
   }
-#endif /* defined(CONFIG_SOC_BLUENRG_LP) || defined(CONFIG_SOC_BLUENRG_LPS) */
+#endif /* defined(CONFIG_SOC_BLUENRG_LP) */
   
   if (SysClk != SYSCLK_DIRECT_HSE) {
     /* System PLL Clock configuration */

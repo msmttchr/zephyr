@@ -104,7 +104,7 @@ static void flash_stm32_page_layout(const struct device *dev,
 	ARG_UNUSED(dev);
 
 	if (bluenrg_flash_layout.pages_count == 0) {
-	        uint32_t flash_size  = ((FLASH_STM32_REGS(dev)->SIZE & 0xFFFF) + 1) << 2;
+		uint32_t flash_size  = ((FLASH_STM32_REGS(dev)->SIZE & 0x1FFFF) + 1) << 2;
 		bluenrg_flash_layout.pages_count = flash_size / FLASH_PAGE_SIZE;
 		bluenrg_flash_layout.pages_size = FLASH_PAGE_SIZE;
 	}

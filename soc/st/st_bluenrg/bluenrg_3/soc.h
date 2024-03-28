@@ -26,6 +26,9 @@
 #elif defined(CONFIG_SOC_BLUENRG_LPS)
 #include <BlueNRG_LPS.h>
 
+#elif defined(CONFIG_SOC_BLUENRG_LPF)
+#include <BlueNRG_LPF.h>
+
 #else
 	#error "Board not supported"
 #endif /* defined(CONFIG_SOC_BLUENRG_LP) */

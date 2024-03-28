@@ -69,7 +69,7 @@ static uint8_t SetTrimConfig(void)
     hsi_calib         = 0x1E;
     eng_lsi_bw_flag   = FALSE;
 
-#elif defined(CONFIG_SOC_BLUENRG_LPS)
+#elif defined(CONFIG_SOC_BLUENRG_LPS) || defined(CONFIG_SOC_BLUENRG_LPF)
     main_regulator    = 0x0A;
     hsi_calib         = 0x1F;
     lsi_bw            = 8;

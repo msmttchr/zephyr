@@ -316,6 +316,7 @@ static int bt_hci_stbluenrg_send(struct net_buf *buf)
 
 	switch (bt_buf_get_type(buf)) {
 	case BT_BUF_ACL_OUT:
+	{
 		uint16_t connection_handle;
 		uint16_t data_len;
 		uint8_t* pdu;
@@ -329,8 +330,10 @@ static int bt_hci_stbluenrg_send(struct net_buf *buf)
 		bc_flag = (hci_buffer[1] >> 6) & 0x3;
 		hci_tx_acl_data(connection_handle, pb_flag, bc_flag, data_len, pdu);
 		break;
+	}
 #if defined(CONFIG_BT_ISO)
 	case BT_BUF_ISO_OUT:
+	{
 		uint16_t connection_handle;
 		uint16_t iso_data_load_len;
 		uint8_t* iso_data_load;
@@ -344,6 +347,7 @@ static int bt_hci_stbluenrg_send(struct net_buf *buf)
 		iso_data_load = &hci_buffer[4];
 		hci_tx_iso_data(connection_handle, pb_flag, ts_flag, iso_data_load_len, iso_data_load);
 		break;
+	}
 #endif /* CONFIG_BT_ISO */
 	case BT_BUF_CMD:
 		process_command(hci_buffer, buf->len, buffer_out_mem, sizeof(buffer_out_mem));
