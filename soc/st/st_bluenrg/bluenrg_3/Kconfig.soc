@@ -13,4 +13,7 @@ config SOC_BLUENRG_LP
 config SOC_BLUENRG_LPS
 	bool "BLUENRG-LPS (BlueNRG-332)"
 
+config SOC_BLUENRG_LPF
+	bool "BLUENRG-LPF (BlueNRG-372)"
+
 endchoice
