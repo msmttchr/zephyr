@@ -1,0 +1,26 @@
+# STEVAL-IDB012V2 board configuration
+
+# Copyright (c) 2024 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_STEVAL_IDB012V2
+
+config BOARD
+	default "steval_idb012v2"
+
+if BT
+
+choice BT_HCI_BUS_TYPE
+	default BT_STM32WB0
+endchoice
+
+choice BT_RECV_CONTEXT
+	default BT_RECV_WORKQ_BT
+endchoice
+
+config BT_HCI_ACL_FLOW_CONTROL
+	default n
+
+endif # BT
+
+endif # BOARD_STEVAL_IDB012V2
