@@ -236,7 +236,7 @@ manifest:
       groups:
         - hal
     - name: hal_bluenrg
-      revision: 8c25f69f9f005c32141b764b65173ea808b95e69
+      revision: 9831ff7f1a2b5d285fdf9de89e0d8ba8eef6f89d
       path: modules/hal/st_bluenrg
       remote: bluenrg_hal
       groups:
