@@ -47,6 +47,8 @@ LOG_MODULE_REGISTER(bt_driver);
 #define BLE_ERROR_FLAGS		0	 /* IRQ flags TBD */
 #define BLE_RXTX_SEQ_PRIO	3
 #define BLE_RXTX_SEQ_FLAGS	0	 /* IRQ flags TBD */
+#define PKA_PRIO	        2
+#define PKA_FLAGS	        0	 /* IRQ flags TBD */
 
 #define LL_EVENT_HANDLER_PRIO		4
 #define LL_EVENT_HANDLER_STACKSIZE	1024
@@ -216,18 +218,22 @@ ISR_DIRECT_DECLARE(BLE_ERROR_IRQHandler)
 	return 1; /* We should check if scheduling decision should be made TBD */
 }
 
+static int _PKA_IRQHandler(void *args)
+{
+	ARG_UNUSED(args);
+	PKA_IRQHandler();
+	ISR_DIRECT_PM(); /* PM done after servicing interrupt for best latency TBD */
+	return 1; /* We should check if scheduling decision should be made TBD */
+}
+
 static void ble_isr_installer(void)
 {
 	IRQ_DIRECT_CONNECT(BLE_WKUP_IRQn, BLE_WKUP_PRIO, BLE_WKUP_IRQHandler, BLE_WKUP_FLAGS);
-	irq_enable(BLE_WKUP_IRQn);
 	IRQ_DIRECT_CONNECT(BLE_TX_RX_IRQn, BLE_TX_RX_PRIO, BLE_TX_RX_IRQHandler, BLE_TX_RX_FLAGS);
-	irq_enable(BLE_TX_RX_IRQn);
 	IRQ_DIRECT_CONNECT(CPU_WKUP_IRQn, CPU_WKUP_PRIO, CPU_WKUP_IRQHandler, CPU_WKUP_FLAGS);
-	irq_enable(CPU_WKUP_IRQn);
 	IRQ_DIRECT_CONNECT(BLE_SEQ_IRQn, BLE_RXTX_SEQ_PRIO, BLE_RXTX_SEQ_IRQHandler, BLE_RXTX_SEQ_FLAGS);
-	irq_enable(BLE_SEQ_IRQn);
 	IRQ_DIRECT_CONNECT(BLE_ERROR_IRQn, BLE_ERROR_PRIO, BLE_ERROR_IRQHandler, BLE_ERROR_FLAGS);
-	irq_enable(BLE_ERROR_IRQn);
+	IRQ_CONNECT(PKA_IRQn, PKA_PRIO, _PKA_IRQHandler, NULL, PKA_FLAGS);
 }
 
 static struct net_buf *get_rx(uint8_t *msg)
@@ -372,6 +378,7 @@ static int bt_hci_stbluenrg_open(void)
 	LL_APB2_EnableClock(LL_APB2_PERIPH_MRBLE);
 	BLECNTR_InitGlobal();
 
+	ble_isr_installer();
 	HAL_VTIMER_Init(&VTIMER_InitStruct);
 
 	BLEPLAT_Init();
@@ -385,7 +392,7 @@ static int bt_hci_stbluenrg_open(void)
 	BLE_STACK_Init(&BLE_STACK_InitParams);
 	dm_init(ACI_GATT_ADV_NWK_BUFFER_SIZE_CONF, aci_gatt_adv_nwk_buffer);
 	aci_adv_nwk_init();
-	ble_isr_installer();
+
 
 	tid = k_thread_create(&ll_event_handler_thread_data, ll_event_handler_stack,
 			K_KERNEL_STACK_SIZEOF(ll_event_handler_stack), ll_event_handler, NULL, NULL,
