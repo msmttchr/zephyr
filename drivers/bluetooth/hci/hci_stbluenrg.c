@@ -374,8 +374,11 @@ static int bt_hci_stbluenrg_open(void)
 	HAL_VTIMER_InitType VTIMER_InitStruct = {MAX_HS_STARTUP_TIME, 0, 0};
 	BLE_STACK_InitTypeDef BLE_STACK_InitParams = BLE_STACK_INIT_PARAMETERS;
 
-	LL_RCC_SetRFClockSource(LL_RCC_RF_RC64MPLL_DIV4);
-	LL_APB2_EnableClock(LL_APB2_PERIPH_MRBLE);
+	MrBleBiasTrimConfig(1);
+	/* Radio Clock Configuration */
+	if (RadioClockConfig(BLE_SYSCLK_16M, SYSCLK_64M))
+		return -EFAULT;
+
 	BLECNTR_InitGlobal();
 
 	ble_isr_installer();
