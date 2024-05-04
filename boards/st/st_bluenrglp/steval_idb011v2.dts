@@ -76,14 +76,21 @@
 	apb2-prescaler = <1>;
 };
 
+/*
 &usart1 {
 	pinctrl-0 = <&usart_tx_pa9 &usart_rx_pa8>;
 	pinctrl-names="default";
 	current-speed = <115200>;
 	status = "disabled";
 };
+*/
+&gpiob {
+	status = "okay";
+};
 
-
+&gpioa {
+	status = "okay";
+};
 
 
 /*

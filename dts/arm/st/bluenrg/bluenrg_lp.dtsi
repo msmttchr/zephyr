@@ -114,7 +114,7 @@
                 gpio-controller;
                 #gpio-cells = <2>;
                 reg = <0x48000000 DT_SIZE_K(1)>;
-				clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00000004>; // AHB0 macro cells clock enable register (RCC_AHBENR)
+                clocks = <&rcc BLUENRG_CLOCK_BUS_AHB0 0x00000004>; // AHB0 macro cells clock enable register (RCC_AHBENR)
             };
             // gpiob : cells à vérif
             gpiob: gpio@48100000 {
