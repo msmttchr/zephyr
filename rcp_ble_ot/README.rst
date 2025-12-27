@@ -1,170 +1,73 @@
-.. zephyr:code-sample:: bluetooth_hci_uart_async
-   :name: HCI UART async
-   :relevant-api: hci_raw bluetooth uart_interface
-
-   Expose a Bluetooth controller to another device or CPU over asynchronous UART.
+.. zephyr:code-sample:: rcp_ble_ot
+   :name: RCP BLE / OT with UART multiplexer
+   :relevant-api: uart async
 
 Overview
-*********
+********
 
-Expose Bluetooth Controller support over a standard Bluetooth HCI UART interface.
+This application implements a Radio Co-Processor (RCP) that exposes
+multiple protocol stacks to a host processor using a single physical
+UART interface.
 
-This sample performs the same basic function as the HCI UART sample, but it uses the UART_ASYNC_API
-instead of UART_INTERRUPT_DRIVEN API. Not all boards implement both UART APIs, so the board support
-of the HCI UART sample may be different.
+A proprietary UART multiplexing layer is used to transport multiple
+independent virtual UART channels over one asynchronous UART instance.
+Channel routing and prioritization are fully configured via Devicetree.
 
-Requirements
+The UART multiplexer is protocol-agnostic and may be reused for other
+multi-channel UART use cases.
+
+Architecture
 ************
 
-* A board with Bluetooth LE support
+- One physical UART using Zephyr's asynchronous UART API
+- Multiple virtual UART devices instantiated from Devicetree
+- Frame-based multiplexing protocol with CRC protection
+- Priority-based TX arbitration between virtual UARTs
 
-Default UART settings
-*********************
+Each virtual UART appears to the application as a normal Zephyr UART
+device and can be bound using ``chosen`` Devicetree properties.
 
-By default the controller builds use the following settings:
+UART Multiplexer
+****************
 
-* Baudrate: 1Mbit/s
-* 8 bits, no parity, 1 stop bit
-* Hardware Flow Control (RTS/CTS) enabled
+The UART multiplexer is implemented entirely at application level and
+does not modify Zephyr core drivers.
+
+Key features:
+- Framed transport with CRC-16-CCITT
+- Deterministic memory usage (no heap)
+- Configurable channel routing via PLC fields
+- Channel priority defined in Devicetree
+- Compatible with asynchronous UART operation
+
+For detailed documentation, see ``UART_MUX.md``.
 
 Building and Running
 ********************
 
-This sample can be found under :zephyr_file:`samples/bluetooth/hci_uart_async`
-in the Zephyr tree and is built as a standard Zephyr application.
-
-Using the controller with emulators and BlueZ
-*********************************************
-
-The instructions below show how to use a Nordic nRF5x device as a Zephyr Bluetooth
-controller and expose it to Linux's BlueZ.
-
-First, make sure you have a recent BlueZ version installed by following the
-instructions in the :ref:`bluetooth_bluez` section.
-
-Now build and flash the sample for the Nordic nRF5x board of your choice.
-All of the Nordic Development Kits come with a Segger IC that provides a
-debugger interface and a CDC ACM serial port bridge. More information can be
-found in :ref:`nordic_segger`.
-
-For example, to build for the nRF52832 Development Kit:
-
-.. zephyr-app-commands::
-   :zephyr-app: samples/bluetooth/hci_uart_async
-   :board: nrf52dk/nrf52832
-   :goals: build flash
-
-.. _bluetooth-hci-uart-async-qemu-posix:
-
-Using the controller with QEMU or native_sim
-============================================
-
-In order to use the HCI UART controller with QEMU or :zephyr:board:`native_sim <native_sim>` you will need
-to attach it to the Linux Host first. To do so simply build the sample and
-connect the UART to the Linux machine, and then attach it with this command:
+Build the application as usual for your target board:
 
 .. code-block:: console
 
-   sudo btattach -B /dev/ttyACM0 -S 1000000 -R
+   west build -b <board> rcp_ble_ot
 
-.. note::
-   Depending on the serial port you are using you will need to modify the
-   ``/dev/ttyACM0`` string to point to the serial device your controller is
-   connected to.
+Devicetree overlays are used to configure:
+- The physical UART used by the multiplexer
+- Virtual UART instances
+- Channel priority and routing
 
-.. note::
-   The ``-R`` flag passed to ``btattach`` instructs the kernel to avoid
-   interacting with the controller and instead just be aware of it in order
-   to proxy it to QEMU later.
+Refer to the board overlay file for an example configuration.
 
-If you are running :file:`btmon` you should see a brief log showing how the
-Linux kernel identifies the attached controller.
+Requirements
+************
 
-Once the controller is attached follow the instructions in the
-:ref:`bluetooth_qemu_native` section to use QEMU with it.
+- Board with UART asynchronous API support
+- One available UART peripheral
+- Host-side software implementing the same framing protocol
 
-.. _bluetooth-hci-uart-async-bluez:
+Limitations
+***********
 
-Using the controller with BlueZ
-===============================
+- One frame in flight at a time on the physical UART
+- Framing protocol is proprietary and host support is required
 
-In order to use the HCI UART controller with BlueZ you will need to attach it
-to the Linux Host first. To do so simply build the sample and connect the
-UART to the Linux machine, and then attach it with this command:
-
-.. code-block:: console
-
-   sudo btattach -B /dev/ttyACM0 -S 1000000
-
-.. note::
-   Depending on the serial port you are using you will need to modify the
-   ``/dev/ttyACM0`` string to point to the serial device your controller is
-   connected to.
-
-If you are running :file:`btmon` you should see a comprehensive log showing how
-BlueZ loads and initializes the attached controller.
-
-Once the controller is attached follow the instructions in the
-:ref:`bluetooth_ctlr_bluez` section to use BlueZ with it.
-
-Debugging the controller
-========================
-
-The sample can be debugged using RTT since the UART is reserved used by this
-application. To enable debug over RTT the debug configuration file can be used.
-
-.. code-block:: console
-
-   west build samples/bluetooth/hci_uart_async -- -DEXTRA_CONFIG='debug.mixin.conf'
-
-Then attach RTT as described here: :ref:`Using Segger J-Link <Using Segger J-Link>`
-
-Using the controller with the Zephyr host
-=========================================
-
-This describes how to hook up a board running this sample to a board running
-an application that uses the Zephyr host.
-
-On the controller side, the ``zephyr,bt-c2h-uart`` DTS property (in the ``chosen``
-block) is used to select which uart device to use. For example if we want to
-keep the console logs, we can keep console on uart0 and the HCI on uart1 like
-so:
-
-.. code-block:: dts
-
-   / {
-      chosen {
-         zephyr,console = &uart0;
-         zephyr,shell-uart = &uart0;
-         zephyr,bt-c2h-uart = &uart1;
-      };
-   };
-
-On the host application, some config options need to be used to select the H4
-driver instead of the built-in controller:
-
-.. code-block:: cfg
-
-   CONFIG_BT_HCI=y
-   CONFIG_BT_LL_SW_SPLIT=n
-
-Similarly, the ``zephyr,bt-hci`` DTS property selects which HCI instance to use.
-The UART needs to have as its child node a HCI UART node:
-
-.. code-block:: dts
-
-   / {
-      chosen {
-         zephyr,console = &uart0;
-         zephyr,shell-uart = &uart0;
-         zephyr,bt-hci = &bt_hci_uart;
-      };
-   };
-
-   &uart1 {
-      status = "okay";
-      bt_hci_uart: bt_hci_uart {
-         compatible = "zephyr,bt-hci-uart";
-         status = "okay";
-      };
-   };
