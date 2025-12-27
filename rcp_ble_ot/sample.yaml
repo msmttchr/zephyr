@@ -1,19 +1,26 @@
 sample:
-  name: Bluetooth HCI UART Async
-  description:
-    This sample is a batteries-included example of a Bluetooth HCI UART
-    connectivity chip.
+  name: RCP BLE / OT with UART multiplexer
+  description: >
+    Radio Co-Processor application exposing multiple virtual UART
+    channels over a single asynchronous UART using a proprietary
+    multiplexing protocol.
 
-    It demonstrates a possible implementation of an HCI UART (H4)
-    interface on top of Zephyr's Bluetooth Raw API, and how to expose it
-    over a UART.
+  tags:
+    - uart
+    - multiprotocol
+    - rcp
 
-    This implementation is based on the Zephyr Asynchoronous UART API.
+  depends_on:
+    - uart
+
+  platforms:
+    allow:
+      - nucleo_wba65ri
+
 tests:
-  sample.bluetooth.hci_uart_async.nrf5:
-    harness: bluetooth
-    platform_allow:
-      - nrf52dk/nrf52832
+  sample.rcp_ble_ot.build:
+    build_only: true
     tags:
       - uart
-      - bluetooth
+      - rcp
+
