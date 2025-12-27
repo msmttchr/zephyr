@@ -1,0 +1,55 @@
+/*
+ * Copyright (c) 2025 STMicroelectronics
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+usart_mux: &usart1 {
+	dmas = <&gpdma1 0 12 STM32_DMA_PERIPH_TX>,
+	       <&gpdma1 1 11 STM32_DMA_PERIPH_RX>;
+	dma-names = "tx", "rx";
+	fifo-enable;
+	status = "okay";
+	current-speed = <115200>;
+	hw-flow-control;
+};
+
+&gpdma1 {
+	status = "okay";
+};
+
+/ {
+	uart_mux_bt: uart-mux-bt {
+		compatible = "st,uart-mux";
+		channel-id = <1>;
+        	priority = <0>;   /* BLE HCI – highest */
+         	plc_tx = <(-1)>; /* Specified in payload */
+         	plc_rx = [01 02 04 05];
+        	status = "okay";
+	};
+
+	uart_mux_ot: uart-mux-ot {
+		compatible = "st,uart-mux";
+		channel-id = <2>;
+         	priority = <1>;   /* OpenThread */
+         	plc_tx = <(-1)>; /* Specified in payload */
+         	plc_rx = [7e];
+         	status = "okay";
+        };
+
+	uart_mux_sys: uart-mux-sys {
+		compatible = "st,uart-mux";
+		channel-id = <3>;
+		priority = <2>;   /* system / logs */
+		plc_tx = <0x40>;
+		plc_rx = [40];
+         	status = "okay";		
+	};
+
+	chosen {
+		zephyr,bt-c2h-uart = &uart_mux_bt;
+		zephyr,ot-uart = &uart_mux_ot;
+		zephyr,console = &uart_mux_sys;
+		uart-mux = &usart_mux;
+	};
+};

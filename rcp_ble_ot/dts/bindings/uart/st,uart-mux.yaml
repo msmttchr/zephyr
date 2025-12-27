@@ -1,0 +1,26 @@
+description: Application UART multiplexer virtual UART
+
+compatible: "st,uart-mux"
+
+properties:
+  channel-id:
+    type: int
+    required: true
+    description: Mux channel identifier
+
+  priority:
+    type: int
+    description: >
+      TX priority of this virtual UART.
+      Lower value = higher priority.
+    default: 1
+
+  plc_tx:
+    type: int
+    required: true
+    description: "Specify PLC field value as an 8-bit parameter (-1, 0-255), to be used in TX, -1 indicates that PLC is first byte of payload"
+  
+  plc_rx:
+    type: uint8-array
+    required: true
+    description: "Specify list of PLC associated to channel for RX message routing"
