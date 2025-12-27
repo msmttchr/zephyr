@@ -94,36 +94,39 @@ All of this is handled internally by the multiplexer.
 ## 3. Software Design Point of View
 
 ### 3.1 High-level architecture
+```
 +----------------------+
 | Virtual UART Device  |
-+----------+-----------+
-|
-+----------v---------------+
-| UART Multiplexer         |
-| ------------------------ |
-| TX arbitration           |
-| Frame construction       |
-| RX state machine         |
-| PLC routing              |
-| +----------+-----------+ |
-           |
-+----------v-----------+
++---------+------------+
+          |
++---------v------------+
+|   UART Mux Driver    |
+|----------------------|
+| TX scheduler         |
+| RX state machine     |
+| PLC routing          |
++---------+------------+
+          |
++---------v------------+
 | Physical UART (ASYNC)|
 +----------------------+
-
-
+```
 ---
 
 ### 3.2 Framing protocol
 
 All data on the physical UART is exchanged using framed packets:
 
-FI | FF | LEN(LE16) | PLC | PAYLOAD | CRC16(LE)
+|              |   |    |           |     |         |           |
+|--------------|---|----|-----------|-----|---------|-----------|
+| Field name   |FI | FF | LEN(LE16) | PLC | PAYLOAD | CRC16(LE) |
+|Size in Bytes |1  | 1  | 2         | 1   | LEN     | 2         |
+| Example      |C0 | 02 | 04 00     | 40  | 01020304| ED 55     |
 
 
 Where:
 - **FI / FF**: Fixed framing bytes
-- **LEN**: Length of `PLC + PAYLOAD` in bytes (little-endian)
+- **LEN**: Length of `PAYLOAD` in bytes (little-endian)
 - **PLC**: Protocol Link Context (routing field)
 - **PAYLOAD**: Channel-specific data
 - **CRC16**: CRC-16-CCITT (little-endian), including the FI byte
