@@ -85,6 +85,7 @@ class STFrameReceiver:
         self.callback = callback
         self.log_rx = log_rx
         self.log_channels = log_channels
+        self.errors = 0
 
     def feed(self, data: bytes):
         for b in data:
@@ -113,12 +114,13 @@ class STFrameReceiver:
             rx_crc, = struct.unpack("<H", raw[5+length:5+length+2])
 
             if crc16_ccitt(raw[:-2]) != rx_crc:
-                logger.warning(f"CRC error: expected {crc16_ccitt(raw[:-2]):4x}, received: {rx_crc:4x}")
+                self.errors += 1
+                logger.warning(f"CRC error(errors: {self.errors:d}): expected {crc16_ccitt(raw[:-2]):4x}, received: {rx_crc:4x}")
                 logger.warning("RX frame:\n%s", hexdump(raw))
                 return True
 
             if self.log_rx and (not self.log_channels or plc in self.log_channels):
-                logger.debug("RX frame:\n%s", hexdump(raw))
+                logger.debug(f"RX frame (errors: {self.errors:d}):\n{hexdump(raw):s}")
                 logger.debug("RX payload (plc=0x%02X):\n%s",
                              plc, hexdump(payload))
 

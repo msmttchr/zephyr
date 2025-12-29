@@ -92,7 +92,7 @@ void sys_thread(void)
 
 	while (1) {
 		int len = snprintk(msg, sizeof(msg),
-				   "SYS %u\n",
+				   "SYS %u\r\n",
 				   k_uptime_get_32());
 		uart_tx(uart_sys, msg, len, SYS_FOREVER_MS);
 		k_sleep(K_MSEC(CONFIG_TEST_SYS_PERIOD_MS));
@@ -100,7 +100,6 @@ void sys_thread(void)
 }
 
 /* ===================== Thread definitions ===================== */
-#if 0
 K_THREAD_DEFINE(ble_tid, 1024, ble_thread, NULL, NULL, NULL,
 		5, 0, 0);
 
@@ -109,7 +108,6 @@ K_THREAD_DEFINE(ot_tid, 1024, ot_thread, NULL, NULL, NULL,
 
 K_THREAD_DEFINE(sys_tid, 1024, sys_thread, NULL, NULL, NULL,
 		7, 0, 0);
-#endif
 /* ===================== Main ===================== */
 int main(void)
 {
@@ -119,13 +117,14 @@ int main(void)
 
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 
-	printk("UART mux test started\r\n");
+#if 0
 	k_sleep(K_MSEC(10));
 	int count = 0;
 	while (1) {
 		printk("%-06d: Loop %d\r\n", (int32_t) k_uptime_get(), ++count);
 		k_sleep(K_MSEC(10));
 	}
+#endif
 	uart_callback_set(uart_ble, ble_uart_cb, NULL);
 	uart_callback_set(uart_ot, ot_uart_cb, NULL);
 	uart_callback_set(uart_sys, sys_uart_cb, NULL);
