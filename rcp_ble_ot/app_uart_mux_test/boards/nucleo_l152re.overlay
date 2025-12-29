@@ -1,0 +1,45 @@
+usart_mux: &usart2 {
+	dmas = <&dma1 7 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
+	       <&dma1 6 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	dma-names = "tx", "rx";
+	status = "okay";
+};
+/ {
+	chosen {
+
+		/delete-property/ zephyr,console; /* No console support with virtual UART */
+		uart-mux = &usart_mux;
+		};
+
+	uart_mux_ble: uart-mux-ble {
+		compatible = "st,uart-mux";
+		status = "okay";
+		channel-id = <1>;
+		priority = <0>;
+
+		/* PLC comes from first payload byte */
+		plc_tx = <(-1)>;
+		plc_rx = [01 02 04 05];
+	};
+
+	uart_mux_ot: uart-mux-ot {
+		compatible = "st,uart-mux";
+		status = "okay";
+		channel-id = <2>;
+		priority = <1>;
+
+		plc_tx = <(-1)>;
+		plc_rx = [7E];
+	};
+
+	uart_mux_sys: uart-mux-sys {
+		compatible = "st,uart-mux";
+		status = "okay";
+		channel-id = <3>;
+		priority = <2>;
+
+		plc_tx = <0x40>;
+		plc_rx = [40];
+	};
+};
+

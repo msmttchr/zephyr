@@ -18,6 +18,19 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/slist.h>
 
+/* ============================= */
+/* Protocol constants            */
+/* ============================= */
+
+#define UART_MUX_FI              0xC0
+#define UART_MUX_FF              0x02
+
+#define UART_MUX_HEADER_LEN      5
+#define UART_MUX_CRC_LEN         2
+#define UART_MUX_MAX_PAYLOAD_LEN  260  /* choose appropriately */
+#define UART_MUX_MAX_FRAME_LEN \
+	(1 + 1 + 2 + 1 + UART_MUX_MAX_PAYLOAD_LEN + 2)
+
 /*
  * Virtual UART channel instance.
  *
@@ -53,6 +66,13 @@ struct uart_mux_channel {
 	struct k_fifo tx_fifo;
 };
 
+enum uart_mux_tx_stage {
+	UART_MUX_TX_IDLE,
+	UART_MUX_TX_HDR,
+	UART_MUX_TX_PAYLOAD,
+	UART_MUX_TX_CRC,
+};
+
 /*
  * TX descriptor.
  *
@@ -71,7 +91,19 @@ struct uart_mux_tx {
 
 	/* PLC value to be inserted into the frame */
 	uint8_t plc;
+
+	/* --- Added fields for staged TX --- */
+
+	/* Prepared frame header (FI, FF, LEN[2], PLC) */
+	uint8_t hdr[UART_MUX_HEADER_LEN];
+
+	/* CRC-16-CCITT over header + payload */
+	uint16_t crc;
+	
+	/* poll out char */
+	uint8_t c;
 };
+
 
 #endif /* UART_MUX_H_ */
 
