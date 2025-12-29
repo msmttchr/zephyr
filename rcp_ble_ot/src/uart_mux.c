@@ -21,15 +21,6 @@
 
 LOG_MODULE_REGISTER(uart_mux, LOG_LEVEL_INF);
 
-/* ============================= */
-/* Protocol constants            */
-/* ============================= */
-
-#define UART_MUX_FI              0xC0
-#define UART_MUX_FF              0x02
-
-#define UART_MUX_HEADER_LEN      5
-#define UART_MUX_CRC_LEN         2
 
 /* ============================= */
 /* Devicetree binding            */
@@ -51,6 +42,24 @@ K_MEM_SLAB_DEFINE(uart_mux_tx_slab,
 /* ============================= */
 /* CRC-16 CCITT                  */
 /* ============================= */
+
+static uint16_t crc16_ccitt(const uint8_t *data, size_t len)
+{
+	uint16_t crc = 0xFFFF;
+
+	for (size_t i = 0; i < len; i++) {
+		crc ^= (uint16_t)data[i] << 8;
+		for (int j = 0; j < 8; j++) {
+			if (crc & 0x8000) {
+				crc = (crc << 1) ^ 0x1021;
+			} else {
+				crc <<= 1;
+			}
+		}
+	}
+
+	return crc;
+}
 
 static uint16_t crc16_ccitt_update(uint16_t crc, uint8_t data)
 {
@@ -80,9 +89,10 @@ struct uart_mux {
 
 	/* TX scheduling state */
 	struct uart_mux_channel *tx_owner;
-	struct uart_mux_tx *current_tx;
-	atomic_t tx_segments_pending;
+	struct uart_mux_tx *tx_ctx;
 
+	enum uart_mux_tx_stage tx_stage;
+	
 	/* RX parsing state */
 	enum {
 		RX_WAIT_FI,
@@ -106,7 +116,10 @@ struct uart_mux {
 	uint16_t crc_calc;
 };
 
-static struct uart_mux mux;
+static struct uart_mux mux = {
+    .channels = SYS_SLIST_STATIC_INIT(&mux.channels),
+};
+
 
 /* ============================= */
 /* Helper functions              */
@@ -159,43 +172,41 @@ static struct uart_mux_channel *pick_next_channel(void)
 
 static void mux_try_tx(void);
 
-static void mux_frame_tx(const struct uart_mux_tx *tx)
+
+static int mux_frame_tx(struct uart_mux_tx *tx)
 {
-	uint8_t header[UART_MUX_HEADER_LEN];
-	uint16_t crc = 0xFFFF;
+	uint16_t crc;
+	int ret;
 
-	header[0] = UART_MUX_FI;
-	header[1] = UART_MUX_FF;
-	header[2] = tx->len & 0xFF;
-	header[3] = tx->len >> 8;
-	header[4] = tx->plc;
+	/* Build header: FI, FF, LEN (LE), PLC */
+	tx->hdr[0] = UART_MUX_FI;
+	tx->hdr[1] = UART_MUX_FF;
+	tx->hdr[2] = tx->len & 0xff;
+	tx->hdr[3] = tx->len >> 8;
+	tx->hdr[4] = tx->plc;
 
-	for (size_t i = 0; i < UART_MUX_HEADER_LEN; i++) {
-		crc = crc16_ccitt_update(crc, header[i]);
-	}
-
-	for (size_t i = 0; i < tx->len; i++) {
+	/* Compute CRC over header + payload (CRC includes FI) */
+	crc = crc16_ccitt(tx->hdr, UART_MUX_HEADER_LEN);
+	for (int i = 0; i < tx->len; i++) {
 		crc = crc16_ccitt_update(crc, tx->buf[i]);
 	}
+	tx->crc = crc;
 
-	uint8_t crc_le[2] = {
-		crc & 0xFF,
-		crc >> 8,
-	};
+	/* Start TX state machine with header */
+	mux.tx_stage = UART_MUX_TX_HDR;
 
-	/*
-	 * One logical TX consists of three physical uart_tx() calls.
-	 * Completion is signaled only after the last segment completes.
-	 */
-	atomic_set(&mux.tx_segments_pending, 3);
+	ret = uart_tx(mux.phy,
+		      tx->hdr,
+		      UART_MUX_HEADER_LEN,
+		      SYS_FOREVER_MS);
 
-	uart_tx(mux.phy, header, sizeof(header), SYS_FOREVER_MS);
-	uart_tx(mux.phy, tx->buf, tx->len, SYS_FOREVER_MS);
-	uart_tx(mux.phy, crc_le, sizeof(crc_le), SYS_FOREVER_MS);
+	return ret;
 }
 
 static void mux_try_tx(void)
 {
+	int ret;
+
 	if (mux.tx_owner) {
 		return;
 	}
@@ -211,10 +222,19 @@ static void mux_try_tx(void)
 		return;
 	}
 
+	/* Claim ownership */
 	mux.tx_owner = ch;
-	mux.current_tx = tx;
+	mux.tx_ctx = tx;
 
-	mux_frame_tx(tx);
+	ret = mux_frame_tx(tx);
+	if (ret) {
+		/* Roll back cleanly */
+		mux.tx_owner = NULL;
+		mux.tx_ctx = NULL;
+
+		/* Put TX back so it is not lost */
+		k_fifo_put(&ch->tx_fifo, tx);
+	}
 }
 
 /* ============================= */
@@ -231,28 +251,67 @@ static void phy_uart_cb(const struct device *dev,
 	switch (evt->type) {
 
 	case UART_TX_DONE:
-		if (atomic_dec(&mux.tx_segments_pending) == 1) {
+		switch (mux.tx_stage) {
 
-			struct uart_mux_tx *tx = mux.current_tx;
-			struct uart_mux_channel *ch = mux.tx_owner;
+		case UART_MUX_TX_HDR:
+			/* Header done → send payload */
+			mux.tx_stage = UART_MUX_TX_PAYLOAD;
 
-			mux.current_tx = NULL;
-			mux.tx_owner = NULL;
+			uart_tx(mux.phy,
+				mux.tx_ctx->buf,
+				mux.tx_ctx->len,
+				SYS_FOREVER_MS);
+			break;
 
-			if (tx) {
-				k_mem_slab_free(&uart_mux_tx_slab,
-						(void **)&tx);
-			}
-
-			if (ch && ch->cb) {
+		case UART_MUX_TX_PAYLOAD:
+			/*
+			 * Payload done:
+			 * - notify virtual UART
+			 * - then send CRC
+			 */
+			if (mux.tx_owner && mux.tx_owner->cb) {
 				struct uart_event ev = {
 					.type = UART_TX_DONE,
+					.data.tx.len = mux.tx_ctx->len,
 				};
-				ch->cb(ch->dev, &ev, ch->cb_data);
+
+				mux.tx_owner->cb(mux.tx_owner->dev,
+						  &ev,
+						  mux.tx_owner->cb_data);
 			}
 
+			mux.tx_stage = UART_MUX_TX_CRC;
+
+			uart_tx(mux.phy,
+				(uint8_t *)&mux.tx_ctx->crc,
+				UART_MUX_CRC_LEN,
+				SYS_FOREVER_MS);
+			break;
+
+		case UART_MUX_TX_CRC:
+			/* Final stage: free TX context and release ownership */
+			k_mem_slab_free(&uart_mux_tx_slab, mux.tx_ctx);
+			mux.tx_ctx = NULL;
+			mux.tx_owner = NULL;
+			mux.tx_stage = UART_MUX_TX_IDLE;
+
+			/* Schedule next TX based on channel priority */
 			mux_try_tx();
+			break;
+
+		default:
+			/* Should never happen */
+			break;
 		}
+		break;
+
+	case UART_TX_ABORTED:
+		k_mem_slab_free(&uart_mux_tx_slab, mux.tx_ctx);
+		mux.tx_ctx = NULL;
+		mux.tx_owner = NULL;
+		mux.tx_stage = UART_MUX_TX_IDLE;
+
+		mux_try_tx();
 		break;
 
 	case UART_RX_RDY:
@@ -469,8 +528,6 @@ static int uart_mux_init(void)
 	mux.phy = DEVICE_DT_GET(DT_CHOSEN(uart_mux));
 	__ASSERT(device_is_ready(mux.phy),
 		 "Physical UART not ready");
-
-	sys_slist_init(&mux.channels);
 
 	uart_callback_set(mux.phy, phy_uart_cb, NULL);
 	uart_rx_enable(mux.phy,

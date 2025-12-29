@@ -1,26 +1,24 @@
 sample:
-  name: RCP BLE / OT with UART multiplexer
+  name: UART multiplexer with RCP and test applications
   description: >
-    Radio Co-Processor application exposing multiple virtual UART
-    channels over a single asynchronous UART using a proprietary
-    multiplexing protocol.
+    Repository providing an application-level UART multiplexer and
+    two applications:
+      - A full Radio Co-Processor (RCP) application
+      - A UART multiplexer test application exercising multiple
+        virtual UART channels over a single asynchronous UART
 
   tags:
     - uart
-    - multiprotocol
+    - multiplexer
     - rcp
 
   depends_on:
     - uart
 
-  platforms:
-    allow:
-      - nucleo_wba65ri
-
 tests:
-  sample.rcp_ble_ot.build:
+  sample.uart_mux_test.build:
     build_only: true
     tags:
       - uart
-      - rcp
+      - multiplexer
 

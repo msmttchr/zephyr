@@ -14,16 +14,19 @@ import termios
 logger = logging.getLogger(__name__)
 
 # ================= CONSTANTS =================
+class PtyDesc:
+    def __init__(self, channel_id, name, plc_tx, plc_rx):
+        self.channel_id = channel_id
+        self.name = name
+        self.plc_tx = plc_tx
+        self.plc_rx = plc_rx
 
-CH_BLE     = 0x01
-CH_SPINEL  = 0x02
-CH_SYSTEM  = 0x03
+ptys = (PtyDesc(1, "BLE",    -1, (0x01, 0x02, 0x04, 0x05)),
+        PtyDesc(2, "OT",     -1, (0x7e,)),
+        PtyDesc(3, "System", 0x40, (0x40,)),
+        )
 
 STFRAME_FI = 0xC0
-
-ble_plc    = (0x01, 0x02, 0x04, 0x05)
-spinel_plc = (0x7E,)
-system_plc = (0x40,)
 
 # =============================================
 
@@ -50,10 +53,10 @@ def crc16_ccitt(data: bytes) -> int:
         for _ in range(8):
             crc = (crc << 1) ^ 0x1021 if (crc & 0x8000) else crc << 1
             crc &= 0xFFFF
-    return crc ^ 0xFFFF
+    return crc
 
 def build_frame(ch: int, payload: bytes, plc=None) -> bytes:
-    if plc is None:
+    if plc is None or plc == -1:
         plc = payload[0]
         payload = payload[1:]
 
@@ -110,7 +113,8 @@ class STFrameReceiver:
             rx_crc, = struct.unpack("<H", raw[5+length:5+length+2])
 
             if crc16_ccitt(raw[:-2]) != rx_crc:
-                logger.warning("CRC error")
+                logger.warning(f"CRC error: expected {crc16_ccitt(raw[:-2]):4x}, received: {rx_crc:4x}")
+                logger.warning("RX frame:\n%s", hexdump(raw))
                 return True
 
             if self.log_rx and (not self.log_channels or plc in self.log_channels):
@@ -168,21 +172,21 @@ async def main():
         log_channels.update(args.channels)
 
     # Create PTYs
-    ble_master, ble_slave = pty.openpty()
-    spinel_master, spinel_slave = pty.openpty()
-    system_master, system_slave = pty.openpty()
+    for pty_desc in ptys:
+        pty_desc.master, pty_desc.slave = pty.openpty()
 
-    print("BLE PTY:   ", os.ttyname(ble_slave))
-    print("Spinel PTY:", os.ttyname(spinel_slave))
-    print("System PTY:", os.ttyname(system_slave))
+    for pty_desc in ptys:
+        print (f"{pty_desc.name}: {os.ttyname(pty_desc.slave):s}")
 
     # Put all PTYs into raw mode (binary safe)
-    for fd in (
-            ble_master, ble_slave,
-            spinel_master, spinel_slave,
-            system_master, system_slave,
-    ):
-        set_raw(fd)
+    for pty_desc in ptys:
+        set_raw(pty_desc.master)
+        set_raw(pty_desc.slave)
+
+    # Build convenience ptys_by_chan_id
+    ptys_by_chan_id = {}
+    for pty_desc in ptys:
+        ptys_by_chan_id[pty_desc.channel_id] = pty_desc
 
     reader, writer = await serial_asyncio.open_serial_connection(
         url=args.port,
@@ -190,12 +194,13 @@ async def main():
     )
 
     def on_frame(plc, payload):
-        if plc in ble_plc:
-            os.write(ble_master, bytes([plc]) + payload)
-        elif plc in spinel_plc:
-            os.write(spinel_master, bytes([plc]) + payload)
-        elif plc in system_plc:
-            os.write(system_master, payload)
+        for pty_desc in ptys:
+            if plc in pty_desc.plc_rx:
+                data = payload
+                if pty_desc.plc_tx == -1:
+                    data = bytes([plc]) + data
+                os.write(pty_desc.master, data)
+                break
 
     frame_handler = STFrameReceiver(on_frame, log_rx, log_channels)
 
@@ -210,11 +215,8 @@ async def main():
         try:
             data = os.read(fd, 1024)
             if data:
-                plc = None
-                if ch == CH_SYSTEM:
-                    plc = 0x40
+                plc = ptys_by_chan_id[ch].plc_tx
                 frame = build_frame(ch, data, plc)
-
                 if log_tx and (not log_channels or ch in log_channels):
                     logger.debug("TX frame (ch=0x%02X):\n%s",
                                  ch, hexdump(frame))
@@ -227,9 +229,8 @@ async def main():
             pass
 
     loop = asyncio.get_running_loop()
-    loop.add_reader(ble_master,    pty_reader, ble_master,    CH_BLE)
-    loop.add_reader(spinel_master, pty_reader, spinel_master, CH_SPINEL)
-    loop.add_reader(system_master, pty_reader, system_master, CH_SYSTEM)
+    for pty_desc in ptys:
+        loop.add_reader(pty_desc.master, pty_reader, pty_desc.master, pty_desc.channel_id)
 
     print("UART MUX running.")
     await uart_rx()
