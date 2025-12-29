@@ -18,6 +18,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/sys/byteorder.h>
 
 LOG_MODULE_REGISTER(uart_mux, LOG_LEVEL_INF);
 
@@ -107,6 +108,8 @@ struct uart_mux {
 	size_t frame_len;
 	size_t frame_pos;
 
+	uint8_t rx_plc;
+
 	uint8_t hdr[UART_MUX_HEADER_LEN];
 	size_t hdr_pos;
 
@@ -124,6 +127,32 @@ static struct uart_mux mux = {
 /* ============================= */
 /* Helper functions              */
 /* ============================= */
+
+static void deliver_rx(struct uart_mux_channel *ch,
+		       uint8_t *data, size_t len)
+{
+	if (!ch->cb || !ch->rx_enabled) {
+		return;
+	}
+
+	struct uart_event evt = {
+		.type = UART_RX_RDY,
+		.data.rx.buf = data,
+		.data.rx.len = len,
+		.data.rx.offset = 0,
+	};
+
+	ch->cb(ch->dev, &evt, ch->cb_data);
+}
+
+static void mux_rx_reset(void)
+{
+	mux.rx_state = RX_WAIT_FI;
+	mux.hdr_pos = 0;
+	mux.frame_pos = 0;
+	mux.crc_pos = 0;
+	mux.frame_len = 0;
+}
 
 static bool plc_matches(const struct uart_mux_channel *ch, uint8_t plc)
 {
@@ -320,93 +349,98 @@ static void phy_uart_cb(const struct device *dev,
 		mux_try_tx();
 		break;
 
-	case UART_RX_RDY:
-		for (size_t i = 0; i < evt->data.rx.len; i++) {
-			uint8_t b = evt->data.rx.buf[i];
+	case UART_RX_RDY: {
+		const uint8_t *buf = evt->data.rx.buf;
+		size_t len = evt->data.rx.len;
+		size_t off = evt->data.rx.offset;
+
+		for (size_t i = 0; i < len; i++) {
+			uint8_t b = buf[off + i];
 
 			switch (mux.rx_state) {
 
+			/* ---------------- WAIT FI ---------------- */
 			case RX_WAIT_FI:
 				if (b == UART_MUX_FI) {
+					mux.crc_calc = 0xFFFF;
+					mux.crc_calc = crc16_ccitt_update(mux.crc_calc, b);
+
 					mux.hdr[0] = b;
 					mux.hdr_pos = 1;
-					mux.crc_calc = crc16_ccitt_update(0xFFFF, b);
 					mux.rx_state = RX_HEADER;
 				}
 				break;
 
+			/* ---------------- HEADER ---------------- */
 			case RX_HEADER:
 				mux.hdr[mux.hdr_pos++] = b;
 				mux.crc_calc = crc16_ccitt_update(mux.crc_calc, b);
 
 				if (mux.hdr_pos == UART_MUX_HEADER_LEN) {
-					mux.frame_len =
-						(uint16_t)mux.hdr[2] |
-						((uint16_t)mux.hdr[3] << 8);
-					mux.frame_pos = 0;
+					if (mux.hdr[1] != UART_MUX_FF) {
+						mux_rx_reset();
+						break;
+					}
+
+					mux.frame_len = sys_get_le16(&mux.hdr[2]);
+
+					if (mux.frame_len > CONFIG_UART_MUX_RX_BUF_SIZE) {
+						mux_rx_reset();
+						break;
+					}
+
 					mux.rx_state = RX_PAYLOAD;
+					mux.frame_pos = 0;
 				}
 				break;
 
+			/* ---------------- PAYLOAD + PLC ---------------- */
 			case RX_PAYLOAD:
-				if (mux.frame_pos < sizeof(mux.frame_payload)) {
-					mux.frame_payload[mux.frame_pos++] = b;
-					mux.crc_calc =
-						crc16_ccitt_update(mux.crc_calc, b);
+				if (mux.frame_pos == 0) {
+					mux.rx_plc = b;
 				}
-				if (mux.frame_pos == mux.frame_len) {
-					mux.crc_pos = 0;
+
+				mux.frame_payload[mux.frame_pos++] = b;
+				mux.crc_calc = crc16_ccitt_update(mux.crc_calc, b);
+
+				if (mux.frame_pos == mux.frame_len + 1) {
 					mux.rx_state = RX_CRC;
+					mux.crc_pos = 0;
 				}
 				break;
 
+			/* ---------------- CRC ---------------- */
 			case RX_CRC:
 				mux.crc_buf[mux.crc_pos++] = b;
+
 				if (mux.crc_pos == UART_MUX_CRC_LEN) {
 					uint16_t rx_crc =
-						mux.crc_buf[0] |
-						((uint16_t)mux.crc_buf[1] << 8);
+						sys_get_le16(mux.crc_buf);
 
-					if (rx_crc == mux.crc_calc &&
-					    mux.frame_len > 0) {
-
-						uint8_t plc =
-							mux.hdr[4];
-
+					if (rx_crc == mux.crc_calc) {
 						struct uart_mux_channel *ch =
-							find_channel_by_plc(plc);
+							find_channel_by_plc(mux.rx_plc);
 
-						if (ch && ch->cb) {
-							struct uart_event ev = {
-								.type = UART_RX_RDY,
-							};
-
-							if (ch->plc_tx < 0) {
-								/* Deliver payload including PLC */
-								ev.data.rx.buf =
-									mux.frame_payload;
-								ev.data.rx.len =
-									mux.frame_len;
+						if (ch) {
+							if (ch->plc_tx >= 0) {
+								deliver_rx(ch,
+									   &mux.frame_payload[1],
+									   mux.frame_len);
 							} else {
-								/* Deliver payload without PLC */
-								ev.data.rx.buf =
-									&mux.frame_payload[1];
-								ev.data.rx.len =
-									mux.frame_len - 1;
+								deliver_rx(ch,
+									   mux.frame_payload,
+									   mux.frame_len + 1);
 							}
-
-							ch->cb(ch->dev,
-							       &ev,
-							       ch->cb_data);
 						}
 					}
 
-					mux.rx_state = RX_WAIT_FI;
+					mux_rx_reset();
 				}
 				break;
 			}
 		}
 		break;
+	}
 
 	default:
 		break;
@@ -469,9 +503,33 @@ static int mux_uart_callback_set(const struct device *dev,
 	return 0;
 }
 
+static int mux_uart_rx_enable(const struct device *dev,
+			      uint8_t *buf, size_t len,
+			      int32_t timeout)
+{
+	struct uart_mux_channel *ch = dev->data;
+
+	ARG_UNUSED(buf);
+	ARG_UNUSED(len);
+	ARG_UNUSED(timeout);
+
+	ch->rx_enabled = true;
+	return 0;
+}
+
+static int mux_uart_rx_disable(const struct device *dev)
+{
+	struct uart_mux_channel *ch = dev->data;
+	ch->rx_enabled = false;
+	return 0;
+}
+
+
 static const struct uart_driver_api uart_mux_api = {
 	.tx = mux_uart_tx,
 	.callback_set = mux_uart_callback_set,
+	.rx_enable = mux_uart_rx_enable,
+	.rx_disable = mux_uart_rx_disable,
 };
 
 /* ============================= */

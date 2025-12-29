@@ -61,6 +61,8 @@ struct uart_mux_channel {
 	uart_callback_t cb;
 	void *cb_data;
 
+	bool rx_enabled;
+
 	/* Channel registry node */
 	sys_snode_t node;
 
