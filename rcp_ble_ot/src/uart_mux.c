@@ -289,8 +289,14 @@ static void phy_uart_cb(const struct device *dev,
 			break;
 
 		case UART_MUX_TX_CRC:
+
+			if (mux.tx_owner && mux.tx_owner->tx_done_cb) {
+				mux.tx_owner->tx_done_cb(mux.tx_ctx->buf, mux.tx_ctx->len, mux.tx_owner->tx_done_user_data);
+			}
+
 			/* Final stage: free TX context and release ownership */
 			k_mem_slab_free(&uart_mux_tx_slab, mux.tx_ctx);
+
 			mux.tx_ctx = NULL;
 			mux.tx_owner = NULL;
 			mux.tx_stage = UART_MUX_TX_IDLE;
@@ -497,6 +503,18 @@ static int uart_mux_ch_init(const struct device *dev)
 
 	return 0;
 }
+
+int uart_mux_register_tx_done_cb(const struct device *dev,
+				 uart_mux_tx_done_cb_t cb,
+				 void *user_data)
+{
+	struct uart_mux_channel *ch = dev->data;
+
+	ch->tx_done_cb = cb;
+	ch->tx_done_user_data = user_data;
+	return 0;
+}
+
 
 #define UART_MUX_DEFINE(inst)					\
 	static uint8_t plc_rx_##inst[] =				\
