@@ -111,7 +111,6 @@ K_THREAD_DEFINE(sys_tid, 1024, sys_thread, NULL, NULL, NULL,
 		7, 0, 0);
 #endif
 /* ===================== Main ===================== */
-
 int main(void)
 {
 	__ASSERT(device_is_ready(uart_ble), "BLE UART not ready");
@@ -121,10 +120,11 @@ int main(void)
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 
 	printk("UART mux test started\r\n");
+	k_sleep(K_MSEC(10));
 	int count = 0;
 	while (1) {
-		printk("Loop %d\r\n", ++count);
-		k_sleep(K_MSEC(1000));
+		printk("%-06d: Loop %d\r\n", (int32_t) k_uptime_get(), ++count);
+		k_sleep(K_MSEC(10));
 	}
 	uart_callback_set(uart_ble, ble_uart_cb, NULL);
 	uart_callback_set(uart_ot, ot_uart_cb, NULL);

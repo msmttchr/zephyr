@@ -31,6 +31,8 @@
 #define UART_MUX_MAX_FRAME_LEN \
 	(1 + 1 + 2 + 1 + UART_MUX_MAX_PAYLOAD_LEN + 2)
 
+typedef void (*uart_mux_tx_done_cb_t)(const uint8_t *buf, size_t len, void *user_data);
+
 /*
  * Virtual UART channel instance.
  *
@@ -64,6 +66,10 @@ struct uart_mux_channel {
 
 	/* FIFO of pending TX descriptors */
 	struct k_fifo tx_fifo;
+
+	uart_mux_tx_done_cb_t tx_done_cb;
+
+	void *tx_done_user_data;
 };
 
 enum uart_mux_tx_stage {
@@ -103,6 +109,10 @@ struct uart_mux_tx {
 	/* poll out char */
 	uint8_t c;
 };
+
+int uart_mux_register_tx_done_cb(const struct device *dev,
+				 uart_mux_tx_done_cb_t cb,
+				 void *user_data);
 
 
 #endif /* UART_MUX_H_ */
