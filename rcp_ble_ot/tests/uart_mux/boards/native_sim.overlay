@@ -1,0 +1,31 @@
+/ {
+	fake_uart: fake-uart {
+		compatible = "zephyr,fake-uart";
+		status = "okay";
+	};
+
+	uart_mux_test: uart-mux-test {
+		compatible = "st,uart-mux";
+		status = "okay";
+		channel-id = <3>;
+		priority = <2>;
+
+		plc_tx = <0x40>;
+		plc_rx = [40];
+	};
+
+	uart_mux_test_plc_in_payload: uart-mux-test-plc-in-payload {
+		compatible = "st,uart-mux";
+		status = "okay";
+		channel-id = <1>;
+		priority = <2>;
+
+		plc_tx = <(-1)>;
+		plc_rx = [42 43 44];
+	};
+
+	chosen {
+		uart-mux = &fake_uart;
+	};
+};
+
