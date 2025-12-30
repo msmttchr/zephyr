@@ -1,0 +1,14 @@
+tests:
+  uart_mux.basic:
+    tags:
+      - uart
+      - mux
+      - async
+    platform_allow:
+      - native_sim
+    harness: ztest
+    harness_config:
+      type: unit
+    integration_platforms:
+      - native_sim
+
