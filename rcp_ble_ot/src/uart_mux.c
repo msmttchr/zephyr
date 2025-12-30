@@ -116,6 +116,7 @@ struct uart_mux {
 	size_t frame_pos;
 
 	uint8_t rx_plc;
+	struct uart_mux_channel *rx_ch;
 
 	uint8_t hdr[UART_MUX_HEADER_LEN];
 	size_t hdr_pos;
@@ -178,6 +179,7 @@ static void mux_rx_reset(void)
 	mux.frame_pos = 0;
 	mux.crc_pos = 0;
 	mux.frame_len = 0;
+	mux.rx_ch = NULL;
 }
 
 static bool plc_matches(const struct uart_mux_channel *ch, uint8_t plc)
@@ -278,22 +280,29 @@ static void mux_rx_byte(uint8_t b)
 				mux_rx_reset();
 				break;
 			}
-
+			mux.rx_ch = find_channel_by_plc(mux.hdr[4]);
+			if (mux.rx_ch == NULL) {
+				mux.rx_stats.no_channel++;
+				notify_rx_stopped(NULL, UART_MUX_RX_ERR_NO_CHANNEL);
+				mux_rx_reset();
+				break;
+			}
 			mux.rx_state = RX_PAYLOAD;
 			mux.frame_pos = 0;
+			if (mux.rx_ch->plc_tx < 0) {
+				/* Special case: plc should be sent as a first bye of payload */
+				mux.frame_payload[mux.frame_pos++] = mux.hdr[4];
+				mux.frame_len++;
+			}
 		}
 		break;
 
-	/* ---------------- PAYLOAD + PLC ---------------- */
+	/* ---------------- PAYLOAD ---------------- */
 	case RX_PAYLOAD:
-		if (mux.frame_pos == 0) {
-			mux.rx_plc = b;
-		}
-
 		mux.frame_payload[mux.frame_pos++] = b;
 		mux.crc_calc = crc16_ccitt_update(mux.crc_calc, b);
 
-		if (mux.frame_pos == mux.frame_len + 1) {
+		if (mux.frame_pos == mux.frame_len) {
 			mux.rx_state = RX_CRC;
 			mux.crc_pos = 0;
 		}
@@ -307,31 +316,17 @@ static void mux_rx_byte(uint8_t b)
 			uint16_t rx_crc =
 				sys_get_le16(mux.crc_buf);
 
-			struct uart_mux_channel *ch =
-					find_channel_by_plc(mux.rx_plc);
-
 			if (rx_crc == mux.crc_calc) {
 
 				mux.rx_stats.frames_ok++;
-				if (ch) {
-					if (ch->plc_tx >= 0) {
-						deliver_rx(ch,
-							   &mux.frame_payload[1],
-							   mux.frame_len);
-					} else {
-						deliver_rx(ch,
-							   mux.frame_payload,
-							   mux.frame_len + 1);
-					}
-				}
+				deliver_rx(mux.rx_ch,
+					   mux.frame_payload,
+					   mux.frame_len);
 			} else {
 				mux.rx_stats.crc_errors++;
-				if (ch) {
-					/* Notify CRC error */
-					notify_rx_stopped(ch, UART_MUX_RX_ERR_CRC);
-				}
+				/* Notify CRC error */
+				notify_rx_stopped(mux.rx_ch, UART_MUX_RX_ERR_CRC);
 			}
-
 			mux_rx_reset();
 		}
 		break;
