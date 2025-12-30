@@ -1,0 +1,10 @@
+source "Kconfig.zephyr"
+
+source "rcp_ble_ot/src/Kconfig.uart_mux"
+
+config UART_FAKE_CUSTOM
+    bool "Fake UART Driver"
+    default y
+    # This is the "Magic" part that fixes your error:
+    select SERIAL_HAS_DRIVER
+    select SERIAL_SUPPORT_ASYNC
