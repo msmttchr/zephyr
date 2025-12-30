@@ -1,31 +1,6 @@
 source "Kconfig.zephyr"
 
-menu "UART mux"
-
-config UART_MUX
-    bool "Enable UART multiplexer"
-    depends on UART_ASYNC_API
-    default y
-
-config UART_MUX_RX_BUF_SIZE
-	int "UART mux RX payload buffer size"
-	range 64 4096
-	default 512
-	depends on UART_MUX
-	help
-	  Maximum payload size supported by the UART mux.
-	  Must be large enough for the largest virtual UART packet.
-
-config UART_MUX_PHY_RX_BUF_SIZE
-	int "UART mux physical RX buffer size"
-	range 32 256
-	default 64
-	depends on UART_MUX
-	help
-	  Size of the physical UART async RX buffer.
-	  This is NOT the frame payload buffer.
-
-endmenu
+source "rcp_ble_ot/src/Kconfig.uart_mux"
 
 config UART_MUX_TEST
 	bool "UART mux test application"

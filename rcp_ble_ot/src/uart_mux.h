@@ -17,6 +17,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/slist.h>
+#include <stdint.h>
 
 /* ============================= */
 /* Protocol constants            */
@@ -81,6 +82,15 @@ enum uart_mux_tx_stage {
 	UART_MUX_TX_CRC,
 };
 
+struct uart_mux_rx_stats {
+	uint32_t frames_ok;
+	uint32_t crc_errors;
+	uint32_t header_errors;
+	uint32_t length_errors;
+	uint32_t no_channel;
+};
+
+
 /*
  * TX descriptor.
  *
@@ -116,6 +126,30 @@ int uart_mux_register_tx_done_cb(const struct device *dev,
 				 uart_mux_tx_done_cb_t cb,
 				 void *user_data);
 
+void uart_mux_rx_pause(bool pause);
+void uart_mux_get_rx_stats(struct uart_mux_rx_stats *out);
+
+
+void uart_mux_rx_inject(const uint8_t *data, size_t len);
+/**
+ * @brief Pause or resume RX delivery to virtual UARTs.
+ *
+ * When RX is paused:
+ *  - Physical UART RX remains enabled
+ *  - Frames are still parsed and validated
+ *  - RX statistics are still updated
+ *  - RX callbacks for virtual UARTs are NOT invoked
+ *
+ * @param pause true to pause RX delivery, false to resume
+ */
+void uart_mux_rx_pause(bool pause);
+
+/**
+ * @brief Check whether RX delivery is currently paused.
+ *
+ * @return true if RX delivery is paused
+ */
+bool uart_mux_rx_is_paused(void);
 
 #endif /* UART_MUX_H_ */
 
