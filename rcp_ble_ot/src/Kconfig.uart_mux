@@ -1,0 +1,28 @@
+menuconfig UART_MUX
+	bool "UART multiplexer"
+	default y
+	help
+	  Enable application-level UART multiplexer.
+
+if UART_MUX
+
+config UART_MUX_PHY_RX_BUF_SIZE
+	int "Physical UART RX buffer size"
+	range 32 256
+	default 64
+
+config UART_MUX_RX_BUF_SIZE
+	int "Virtual UART RX payload buffer size"
+	range 64 4096
+	default 256
+
+config UART_MUX_MAX_CHANNELS
+	int "Maximum number of virtual UART channels"
+	default 4
+
+config UART_MUX_RX_TIMEOUT_MS
+	int "RX resync timeout (ms)"
+	default 50
+
+endif # UART_MUX
+
