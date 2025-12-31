@@ -1,6 +1,6 @@
 source "Kconfig.zephyr"
 
-source "rcp_ble_ot/src/Kconfig.uart_mux"
+rsource "../src/Kconfig.uart_mux"
 
 config UART_MUX_TEST
 	bool "UART mux test application"
