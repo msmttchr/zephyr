@@ -12,9 +12,17 @@ project(rcp_ble_ot)
 zephyr_include_directories(${CMAKE_CURRENT_LIST_DIR}/../../src)
 
 target_sources(app PRIVATE
-  ../../src/uart_mux.c
-  src/test_rx.c
-  src/test_tx.c
-  src/fake_uart.c
+	../../src/uart_mux.c
+	src/fake_uart.c
+	src/test_helpers.c
+	src/test_rx.c
+	src/test_rx_fuzz.c
+	src/test_rx_timeout.c
+	src/test_rx_tx_combined.c
+	src/test_stress.c
+	src/test_tx_abort.c
+	src/test_tx_back_to_back.c
+	src/test_tx.c
+	src/test_tx_priority.c
 )
 

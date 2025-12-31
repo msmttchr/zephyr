@@ -1,26 +1,11 @@
 #include <zephyr/ztest.h>
 #include <zephyr/drivers/uart.h>
 #include "uart_mux.h"
+#include "test_helpers.h"
 
 /* captured RX */
 static uint8_t rx_buf[64];
 static size_t rx_len;
-
-static uint16_t crc16_ccitt_update(uint16_t crc, uint8_t data)
-{
-	crc ^= (uint16_t)data << 8;
-
-	for (int i = 0; i < 8; i++) {
-		if (crc & 0x8000) {
-			crc = (crc << 1) ^ 0x1021;
-		} else {
-			crc <<= 1;
-		}
-	}
-
-	return crc;
-}
-
 
 static void test_uart_cb(const struct device *dev,
 			 struct uart_event *evt,
@@ -75,14 +60,7 @@ ZTEST(uart_mux_rx, test_valid_frame)
 	frame[2] = length_in_header & 0xFF; /* LEN LSB */
 	frame[3] = length_in_header >> 8;   /* LEN MSB */
 
-	uint16_t crc = 0xFFFF;
-	for (size_t i = 0; i < (sizeof(frame) - 2); i++) {
-		crc = crc16_ccitt_update(crc, frame[i]);
-	}
-	crc ^= 0xFFFF;
-
-	frame[sizeof(frame) - 2] = crc & 0xFF;
-	frame[sizeof(frame) - 1] = crc >> 8;
+	patch_crc_to_frame(frame, sizeof(frame));
 	fake_uart_inject_rx(frame, sizeof(frame));
 
 	zassert_equal(rx_len, len, NULL);
@@ -131,14 +109,7 @@ ZTEST(uart_mux_rx, test_valid_frame2)
 	frame[2] = length_in_header & 0xFF; /* LEN LSB */
 	frame[3] = length_in_header >> 8;   /* LEN MSB */
 
-	uint16_t crc = 0xFFFF;
-	for (size_t i = 0; i < (sizeof(frame) - 2); i++) {
-		crc = crc16_ccitt_update(crc, frame[i]);
-	}
-	crc ^= 0xFFFF;
-
-	frame[sizeof(frame) - 2] = crc & 0xFF;
-	frame[sizeof(frame) - 1] = crc >> 8;
+	patch_crc_to_frame(frame, sizeof(frame));
 	fake_uart_inject_rx(frame, sizeof(frame));
 
 	zassert_equal(rx_len, len, NULL);
