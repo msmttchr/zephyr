@@ -3,11 +3,6 @@ description: Application UART multiplexer virtual UART
 compatible: "st,uart-mux"
 
 properties:
-  channel-id:
-    type: int
-    required: true
-    description: Mux channel identifier
-
   priority:
     type: int
     description: >

@@ -7,7 +7,6 @@
 	uart_mux_test: uart-mux-test {
 		compatible = "st,uart-mux";
 		status = "okay";
-		channel-id = <3>;
 		priority = <2>;
 
 		plc_tx = <0x40>;
@@ -17,11 +16,26 @@
 	uart_mux_test_plc_in_payload: uart-mux-test-plc-in-payload {
 		compatible = "st,uart-mux";
 		status = "okay";
-		channel-id = <1>;
 		priority = <2>;
 
 		plc_tx = <(-1)>;
 		plc_rx = [42 43 44];
+	};
+
+	uart_mux_ch_high: uart-mux-high {
+		compatible = "st,uart-mux";
+		priority = <0>; /* higher */
+		plc_tx = <0x10>;
+		plc_rx = [10];
+		status = "okay";
+	};
+
+	uart_mux_ch_low: uart-mux-low {
+		compatible = "st,uart-mux";
+		priority = <1>; /* lower */
+		plc_tx = <0x20>;
+		plc_rx = [10];
+		status = "okay";
 	};
 
 	chosen {

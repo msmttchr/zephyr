@@ -503,7 +503,9 @@ static void phy_uart_cb(const struct device *dev,
 		break;
 
 	case UART_TX_ABORTED:
-		k_mem_slab_free(&uart_mux_tx_slab, mux.tx_ctx);
+		if (mux.tx_ctx) {
+			k_mem_slab_free(&uart_mux_tx_slab, mux.tx_ctx);
+		}
 		mux.tx_ctx = NULL;
 		mux.tx_owner = NULL;
 		mux.tx_stage = UART_MUX_TX_IDLE;
@@ -624,7 +626,6 @@ static const struct uart_driver_api uart_mux_api = {
 /* ============================= */
 
 struct uart_mux_cfg {
-	uint8_t channel_id;
 	uint8_t priority;
 	int plc_tx;
 	const uint8_t *plc_rx;
@@ -637,7 +638,6 @@ static int uart_mux_ch_init(const struct device *dev)
 	const struct uart_mux_cfg *cfg = dev->config;
 
 	ch->dev = dev;
-	ch->channel_id = cfg->channel_id;
 	ch->priority = cfg->priority;
 	ch->plc_tx = cfg->plc_tx;
 	ch->plc_rx = cfg->plc_rx;
@@ -665,7 +665,6 @@ int uart_mux_register_tx_done_cb(const struct device *dev,
 	static uint8_t plc_rx_##inst[] =				\
 		DT_INST_PROP(inst, plc_rx);				\
 	static const struct uart_mux_cfg uart_mux_cfg_##inst = {	\
-		.channel_id = DT_INST_PROP(inst, channel_id),		\
 		.priority   = DT_INST_PROP(inst, priority),		\
 		.plc_tx     = DT_INST_PROP(inst, plc_tx),		\
 		.plc_rx     = plc_rx_##inst,				\
