@@ -14,7 +14,6 @@ usart_mux: &usart2 {
 	uart_mux_ble: uart-mux-ble {
 		compatible = "st,uart-mux";
 		status = "okay";
-		channel-id = <1>;
 		priority = <0>;
 
 		/* PLC comes from first payload byte */
@@ -25,7 +24,6 @@ usart_mux: &usart2 {
 	uart_mux_ot: uart-mux-ot {
 		compatible = "st,uart-mux";
 		status = "okay";
-		channel-id = <2>;
 		priority = <1>;
 
 		plc_tx = <(-1)>;
@@ -35,7 +33,6 @@ usart_mux: &usart2 {
 	uart_mux_sys: uart-mux-sys {
 		compatible = "st,uart-mux";
 		status = "okay";
-		channel-id = <3>;
 		priority = <2>;
 
 		plc_tx = <0x40>;

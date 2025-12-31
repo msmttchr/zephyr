@@ -21,7 +21,6 @@ usart_mux: &usart1 {
 / {
 	uart_mux_bt: uart-mux-bt {
 		compatible = "st,uart-mux";
-		channel-id = <1>;
         	priority = <0>;   /* BLE HCI – highest */
          	plc_tx = <(-1)>; /* Specified in payload */
          	plc_rx = [01 02 04 05];
@@ -30,7 +29,6 @@ usart_mux: &usart1 {
 
 	uart_mux_ot: uart-mux-ot {
 		compatible = "st,uart-mux";
-		channel-id = <2>;
          	priority = <1>;   /* OpenThread */
          	plc_tx = <(-1)>; /* Specified in payload */
          	plc_rx = [7e];
@@ -39,7 +37,6 @@ usart_mux: &usart1 {
 
 	uart_mux_sys: uart-mux-sys {
 		compatible = "st,uart-mux";
-		channel-id = <3>;
 		priority = <2>;   /* system / logs */
 		plc_tx = <0x40>;
 		plc_rx = [40];
