@@ -27,6 +27,10 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #include "platform-zephyr.h"
 
+#if defined(CONFIG_UART_ASYNC_API)
+#define OT_UART_ASYNC
+#endif
+
 struct openthread_uart {
 	struct ring_buf *rx_ringbuf;
 	const struct device *dev;
@@ -42,9 +46,11 @@ struct openthread_uart {
 
 OT_UART_DEFINE(ot_uart, CONFIG_OPENTHREAD_COPROCESSOR_UART_RING_BUFFER_SIZE);
 
+static bool is_panic_mode;
+
+#ifndef OT_UART_ASYNC
 #define RX_FIFO_SIZE 128
 
-static bool is_panic_mode;
 static const uint8_t *write_buffer;
 static uint16_t write_length;
 
@@ -116,6 +122,46 @@ static void uart_callback(const struct device *dev, void *user_data)
 		}
 	}
 }
+#else
+#if DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_ot_uart), st_uart_mux)
+/* Virtual MUX UART does not need any memory */
+uint8_t rx_buf[0];
+#else
+/* For regular UART with async support, define real rx_buf */
+uint8_t rx_buf[256];
+#endif
+/* Async API */
+static void uart_async_cb(const struct device *dev,
+                          struct uart_event *evt,
+                          void *user_data)
+{
+	switch (evt->type) {
+	case UART_RX_RDY:
+		size_t len = ring_buf_put(ot_uart.rx_ringbuf,
+					  evt->data.rx.buf,
+					  evt->data.rx.len);
+		if (len > 0) {
+			otSysEventSignalPending();
+		}
+		if (len < evt->data.rx.len) {
+			LOG_WRN("RX ring buffer full.");
+		}
+		break;
+	case UART_RX_DISABLED:
+		uart_rx_enable(dev, rx_buf, sizeof(rx_buf), SYS_FOREVER_MS);
+		break;
+
+	case UART_TX_DONE:
+	case UART_TX_ABORTED:
+		ot_uart.tx_busy = 0;
+		atomic_set(&(ot_uart.tx_finished), 1);
+		otSysEventSignalPending();
+		break;
+	default:
+		break;
+	}
+}
+#endif
 
 void otPlatUartReceived(const uint8_t *aBuf, uint16_t aBufLength)
 {
@@ -164,6 +210,7 @@ otError otPlatUartEnable(void)
 		return OT_ERROR_FAILED;
 	}
 
+#ifndef OT_UART_ASYNC
 	uart_irq_callback_user_data_set(ot_uart.dev,
 					uart_callback,
 					(void *)&ot_uart);
@@ -176,14 +223,23 @@ otError otPlatUartEnable(void)
 	}
 
 	uart_irq_rx_enable(ot_uart.dev);
+#else
+	uart_callback_set(ot_uart.dev, uart_async_cb, NULL);
+	uart_rx_enable(ot_uart.dev, rx_buf, sizeof(rx_buf), SYS_FOREVER_MS);
+#endif
 
 	return OT_ERROR_NONE;
 }
 
 otError otPlatUartDisable(void)
 {
+#ifndef OT_UART_ASYNC
 	uart_irq_tx_disable(ot_uart.dev);
 	uart_irq_rx_disable(ot_uart.dev);
+#else
+	uart_rx_disable(ot_uart.dev);
+	uart_tx_abort(ot_uart.dev);
+#endif
 	return OT_ERROR_NONE;
 }
 
@@ -194,6 +250,7 @@ otError otPlatUartSend(const uint8_t *aBuf, uint16_t aBufLength)
 	}
 
 	if (atomic_cas(&(ot_uart.tx_busy), 0, 1)) {
+#ifndef OT_UART_ASYNC
 		write_buffer = aBuf;
 		write_length = aBufLength;
 
@@ -206,6 +263,15 @@ otError otPlatUartSend(const uint8_t *aBuf, uint16_t aBufLength)
 			uart_irq_tx_enable(ot_uart.dev);
 		}
 		return OT_ERROR_NONE;
+#else
+		int ret = uart_tx(ot_uart.dev, aBuf, aBufLength, SYS_FOREVER_MS);
+		if (is_panic_mode && !ret) {
+			/* In panic mode all data have to be send immediately
+			 */
+			otPlatUartFlush();
+		}
+		return ret ? OT_ERROR_BUSY : OT_ERROR_NONE;
+#endif
 	}
 
 	return OT_ERROR_BUSY;
@@ -215,6 +281,7 @@ otError otPlatUartFlush(void)
 {
 	otError result = OT_ERROR_NONE;
 
+#ifndef OT_UART_ASYNC
 	if (write_length) {
 		for (size_t i = 0; i < write_length; i++) {
 			uart_poll_out(ot_uart.dev, *(write_buffer+i));
@@ -224,6 +291,11 @@ otError otPlatUartFlush(void)
 	ot_uart.tx_busy = 0;
 	atomic_set(&(ot_uart.tx_finished), 1);
 	otSysEventSignalPending();
+#else
+	while (ot_uart.tx_busy) {
+		k_yield();
+	}
+#endif
 	return result;
 }
 
@@ -233,6 +305,10 @@ void platformUartPanic(void)
 	/* In panic mode data are send without using interrupts.
 	 * Reception in this mode is not supported.
 	 */
+#ifndef OT_UART_ASYNC
 	uart_irq_tx_disable(ot_uart.dev);
 	uart_irq_rx_disable(ot_uart.dev);
+#else
+	uart_rx_disable(ot_uart.dev);
+#endif
 }
