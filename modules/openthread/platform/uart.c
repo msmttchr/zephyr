@@ -100,7 +100,7 @@ static void uart_tx_handle(const struct device *dev)
 		write_length -= len;
 	} else {
 		uart_irq_tx_disable(dev);
-		ot_uart.tx_busy = 0;
+		atomic_clear(&ot_uart.tx_busy);
 		atomic_set(&(ot_uart.tx_finished), 1);
 		otSysEventSignalPending();
 	}
@@ -135,6 +135,9 @@ static void uart_async_cb(const struct device *dev,
                           struct uart_event *evt,
                           void *user_data)
 {
+	ARG_UNUSED(dev);
+	ARG_UNUSED(user_data);
+
 	switch (evt->type) {
 	case UART_RX_RDY:
 		size_t len = ring_buf_put(ot_uart.rx_ringbuf,
@@ -210,17 +213,17 @@ otError otPlatUartEnable(void)
 		return OT_ERROR_FAILED;
 	}
 
-#ifndef OT_UART_ASYNC
-	uart_irq_callback_user_data_set(ot_uart.dev,
-					uart_callback,
-					(void *)&ot_uart);
-
 	if (DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_ot_uart), zephyr_cdc_acm_uart)) {
 		/* Data Carrier Detect Modem - mark connection as established */
 		(void)uart_line_ctrl_set(ot_uart.dev, UART_LINE_CTRL_DCD, 1);
 		/* Data Set Ready - the NCP SoC is ready to communicate */
 		(void)uart_line_ctrl_set(ot_uart.dev, UART_LINE_CTRL_DSR, 1);
 	}
+
+#ifndef OT_UART_ASYNC
+	uart_irq_callback_user_data_set(ot_uart.dev,
+					uart_callback,
+					(void *)&ot_uart);
 
 	uart_irq_rx_enable(ot_uart.dev);
 #else
@@ -292,8 +295,8 @@ otError otPlatUartFlush(void)
 	atomic_set(&(ot_uart.tx_finished), 1);
 	otSysEventSignalPending();
 #else
-	while (ot_uart.tx_busy) {
-		k_yield();
+	while (atomic_get(&ot_uart.tx_busy)) {
+		k_sleep(K_MSEC(1));
 	}
 #endif
 	return result;
