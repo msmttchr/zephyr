@@ -1,0 +1,62 @@
+name: Build RCP BLE OT Applications
+
+on:
+  push:
+    branches:
+      - rcp_ble_ot
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - app_path: rcp_ble_ot/app_uart_mux_test
+            board: nucleo_l152re
+            bin_name: uart_mux_test
+          - app_path: rcp_ble_ot/app_rcp
+            board: nucleo_wba65ri
+            bin_name: rcp_app
+
+    steps:
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: rcp_ble_ot
+          path: zephyr
+          fetch-depth: 1
+
+      - name: Set Workspace Permissions
+        run: sudo chmod -R 777 ${{ github.workspace }}
+
+      - name: Build in Zephyr Container
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workdir \
+            -w /workdir \
+            ghcr.io/zephyrproject-rtos/zephyr-build:main \
+            /bin/bash -c "
+              cd zephyr && \
+              west init -l . && \
+              west update --narrow -o=--depth=1 && \
+              west blobs fetch hal_stm32 && \
+              west build -b ${{ matrix.board }} ${{ matrix.app_path }} && \
+              cp build/zephyr/zephyr.bin ../${{ matrix.bin_name }}_${{ matrix.board }}.bin
+            "
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.bin_name }}-${{ matrix.board }}
+          path: ${{ matrix.bin_name }}_${{ matrix.board }}.bin
+
