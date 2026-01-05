@@ -44,6 +44,7 @@ static K_FIFO_DEFINE(c2h_queue);
 /* -------------------------------------------------------------------------- */
 
 #define H2C_RX_FIFO_SIZE 256
+#define RX_TIMEOUT 500
 
 static uint8_t h2c_rx_fifo[H2C_RX_FIFO_SIZE];
 static uint16_t h2c_rx_head;
@@ -51,8 +52,7 @@ static uint16_t h2c_rx_tail;
 static struct k_sem h2c_rx_sem;
 
 /* RX DMA buffers */
-static uint8_t rx_buf0[64];
-static uint8_t rx_buf1[64];
+static uint8_t rx_buf[64];
 
 /** Send raw data on c2h UART.
  *
@@ -349,10 +349,6 @@ void callback(const struct device *dev, struct uart_event *evt, void *user_data)
 		break;
 	}
 
-	case UART_RX_BUF_REQUEST:
-		uart_rx_buf_rsp(dev, rx_buf1, sizeof(rx_buf1));
-		break;
-
 	case UART_TX_DONE:
 		(void)k_poll_signal_raise(&uart_c2h_tx_sig, 0);
 		break;
@@ -382,8 +378,8 @@ static int hci_uart_init(void)
 
 	/* Note: Asserts if CONFIG_UART_ASYNC_API is not enabled for `hci_uart_dev`. */
 	__ASSERT(!err, "err %d", err);
-	err = uart_rx_enable(hci_uart_dev, rx_buf0, sizeof(rx_buf0),
-			     SYS_FOREVER_US);
+	err = uart_rx_enable(hci_uart_dev, rx_buf, sizeof(rx_buf),
+			     RX_TIMEOUT);
 	__ASSERT(!err, "uart_rx_enable failed");
 
 	return 0;
