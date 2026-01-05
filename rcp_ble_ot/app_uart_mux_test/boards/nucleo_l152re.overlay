@@ -1,7 +1,8 @@
 usart_mux: &usart2 {
 	dmas = <&dma1 7 (STM32_DMA_PERIPH_TX | STM32_DMA_PRIORITY_HIGH)>,
-	       <&dma1 6 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH)>;
+	       <&dma1 6 (STM32_DMA_PERIPH_RX | STM32_DMA_PRIORITY_HIGH | STM32_DMA_MODE_CYCLIC)>;
 	dma-names = "tx", "rx";
+	fifo-enable;
 	status = "okay";
 };
 / {

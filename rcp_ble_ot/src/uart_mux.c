@@ -22,7 +22,7 @@
 
 LOG_MODULE_REGISTER(uart_mux, LOG_LEVEL_INF);
 
-
+#define RX_TIMEOUT 500
 /* ============================= */
 /* Devicetree binding            */
 /* ============================= */
@@ -698,7 +698,7 @@ static int uart_mux_init(void)
 	uart_rx_enable(mux.phy,
 		       mux.phy_rx_buf,
 		       sizeof(mux.phy_rx_buf),
-		       SYS_FOREVER_MS);
+		       RX_TIMEOUT);
 
 	mux.rx_state = RX_WAIT_FI;
 
