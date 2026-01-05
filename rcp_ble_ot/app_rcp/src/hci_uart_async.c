@@ -35,11 +35,28 @@ static const struct device *const hci_uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_
 static K_THREAD_STACK_DEFINE(h2c_thread_stack, CONFIG_BT_HCI_TX_STACK_SIZE);
 static struct k_thread h2c_thread;
 
-struct k_poll_signal uart_h2c_rx_sig;
 struct k_poll_signal uart_c2h_tx_sig;
 
 static K_FIFO_DEFINE(c2h_queue);
 
+/* -------------------------------------------------------------------------- */
+/*                              RX BYTE FIFO                                  */
+/* -------------------------------------------------------------------------- */
+
+#define H2C_RX_FIFO_SIZE 256
+#define RX_TIMEOUT 500
+
+static uint8_t h2c_rx_fifo[H2C_RX_FIFO_SIZE];
+static uint16_t h2c_rx_head;
+static uint16_t h2c_rx_tail;
+static struct k_sem h2c_rx_sem;
+
+/* RX DMA buffers */
+#if DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_bt_c2h_uart), st_uart_mux)
+static uint8_t rx_buf[0];
+#else
+static uint8_t rx_buf[64];
+#endif
 /** Send raw data on c2h UART.
  *
  * Blocks until completion. Not thread-safe.
@@ -119,22 +136,14 @@ static uint8_t hci_hdr_size(uint8_t h4_type)
  */
 static int uart_h2c_rx(uint8_t *dst, size_t size)
 {
-	int err;
-	struct k_poll_signal *sig = &uart_h2c_rx_sig;
-	struct k_poll_event done[] = {
-		K_POLL_EVENT_INITIALIZER(K_POLL_TYPE_SIGNAL, K_POLL_MODE_NOTIFY_ONLY, sig),
-	};
+	for (size_t i = 0; i < size; i++) {
+		k_sem_take(&h2c_rx_sem, K_FOREVER);
 
-	k_poll_signal_reset(sig);
-	err = uart_rx_enable(hci_uart_dev, dst, size, SYS_FOREVER_US);
-
-	if (err) {
-		LOG_ERR("uart h2c rx: err %d", err);
-		return err;
+		dst[i] = h2c_rx_fifo[h2c_rx_tail];
+		h2c_rx_tail = (h2c_rx_tail + 1) % H2C_RX_FIFO_SIZE;
 	}
 
-	k_poll(done, ARRAY_SIZE(done), K_FOREVER);
-	return sig->result;
+	return 0;
 }
 
 /** Inject a HCI EVT Hardware error into the c2h packet stream.
@@ -315,16 +324,40 @@ static void h2c_thread_entry(void *p1, void *p2, void *p3)
 	}
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              UART CALLBACK                                 */
+/* -------------------------------------------------------------------------- */
+
 void callback(const struct device *dev, struct uart_event *evt, void *user_data)
 {
 	ARG_UNUSED(user_data);
 
-	if (evt->type == UART_RX_DISABLED) {
-		(void)k_poll_signal_raise(&uart_h2c_rx_sig, 0);
-	} else if (evt->type == UART_RX_STOPPED) {
-		(void)k_poll_signal_raise(&uart_h2c_rx_sig, evt->data.rx_stop.reason);
-	} else if (evt->type == UART_TX_DONE) {
+	switch (evt->type) {
+
+	case UART_RX_RDY: {
+		const uint8_t *d = evt->data.rx.buf + evt->data.rx.offset;
+
+		for (size_t i = 0; i < evt->data.rx.len; i++) {
+			uint16_t next = (h2c_rx_head + 1) % H2C_RX_FIFO_SIZE;
+
+			if (next == h2c_rx_tail) {
+				LOG_ERR("H2C RX FIFO overflow");
+				return;
+			}
+
+			h2c_rx_fifo[h2c_rx_head] = d[i];
+			h2c_rx_head = next;
+			k_sem_give(&h2c_rx_sem);
+		}
+		break;
+	}
+
+	case UART_TX_DONE:
 		(void)k_poll_signal_raise(&uart_c2h_tx_sig, 0);
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -332,10 +365,11 @@ static int hci_uart_init(void)
 {
 	int err;
 
-	k_poll_signal_init(&uart_h2c_rx_sig);
 	k_poll_signal_init(&uart_c2h_tx_sig);
 
 	LOG_DBG("");
+	k_sem_init(&h2c_rx_sem, 0, H2C_RX_FIFO_SIZE);
+	h2c_rx_head = h2c_rx_tail = 0;
 
 	if (!device_is_ready(hci_uart_dev)) {
 		LOG_ERR("HCI UART %s is not ready", hci_uart_dev->name);
@@ -347,6 +381,9 @@ static int hci_uart_init(void)
 
 	/* Note: Asserts if CONFIG_UART_ASYNC_API is not enabled for `hci_uart_dev`. */
 	__ASSERT(!err, "err %d", err);
+	err = uart_rx_enable(hci_uart_dev, rx_buf, sizeof(rx_buf),
+			     RX_TIMEOUT);
+	__ASSERT(!err, "uart_rx_enable failed");
 
 	return 0;
 }
