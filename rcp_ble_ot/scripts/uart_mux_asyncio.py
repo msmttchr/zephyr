@@ -137,8 +137,8 @@ async def main():
 
     parser.add_argument("--port", default="/dev/ttyACM0",
                         help="UART device (default: /dev/ttyACM0)")
-    parser.add_argument("--baudrate", type=int, default=115200,
-                        help="UART baudrate (default: 115200)")
+    parser.add_argument("--baudrate", type=int, default=921600,
+                        help="UART baudrate (default: 921600)")
     parser.add_argument("--log-level", default="INFO",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     parser.add_argument("--log-rx", action="store_true",
