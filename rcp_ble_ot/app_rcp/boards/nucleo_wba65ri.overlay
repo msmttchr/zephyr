@@ -9,9 +9,9 @@ usart_mux: &usart1 {
 	       <&gpdma1 1 11 (STM32_DMA_PERIPH_RX | STM32_DMA_MODE_CYCLIC)>;
 	dma-names = "tx", "rx";
 	fifo-enable;
-	status = "okay";
-	current-speed = <115200>;
+	current-speed = <921600>;
 	hw-flow-control;
+	status = "okay";
 };
 
 &gpdma1 {
