@@ -21,9 +21,9 @@ class PtyDesc:
         self.plc_tx = plc_tx
         self.plc_rx = plc_rx
 
-ptys = (PtyDesc(1, "BLE",    -1, (0x01, 0x02, 0x04, 0x05)),
-        PtyDesc(2, "OT",     -1, (0x7e,)),
-        PtyDesc(3, "System", 0x40, (0x40,)),
+ptys = (PtyDesc(1, "BLE",    0x91, (0x91,)),
+        PtyDesc(2, "OT",     0x92, (0x92,)),
+        PtyDesc(3, "System", 0x90, (0x90,)),
         )
 
 STFRAME_FI = 0xC0
