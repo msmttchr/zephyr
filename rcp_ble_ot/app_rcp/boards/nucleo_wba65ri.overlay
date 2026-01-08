@@ -21,25 +21,25 @@ usart_mux: &usart1 {
 / {
 	uart_mux_bt: uart-mux-bt {
 		compatible = "st,uart-mux";
-        	priority = <0>;   /* BLE HCI – highest */
-         	plc_tx = <(-1)>; /* Specified in payload */
-         	plc_rx = [01 02 04 05];
-        	status = "okay";
+			priority = <0>;   /* BLE HCI – highest */
+			plc_tx = <0x91>; /* Specified in payload */
+			plc_rx = [91];
+			status = "okay";
 	};
 
 	uart_mux_ot: uart-mux-ot {
 		compatible = "st,uart-mux";
-         	priority = <1>;   /* OpenThread */
-         	plc_tx = <(-1)>; /* Specified in payload */
-         	plc_rx = [7e];
+			priority = <1>;   /* OpenThread */
+			plc_tx = <0x92>; /* Specified in payload */
+			plc_rx = [92];
          	status = "okay";
         };
 
 	uart_mux_sys: uart-mux-sys {
 		compatible = "st,uart-mux";
 		priority = <2>;   /* system / logs */
-		plc_tx = <0x40>;
-		plc_rx = [40];
+		plc_tx = <0x90>;
+		plc_rx = [90];
          	status = "okay";		
 	};
 
