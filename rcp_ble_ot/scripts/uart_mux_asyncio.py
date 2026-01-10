@@ -86,7 +86,7 @@ def build_frame(ch: int, payload: bytes, plc=None) -> bytes:
     crc = crc16_ccitt(hdr + payload)
     return hdr + payload + struct.pack("<H", crc)
 
-def print_status(args, bt_status=None, hci_dev="Not provided"):
+def print_status(args, bt_status=None, hci_dev="Not provided", ot_status=None):
     """Enhanced status message for the MUX configuration."""
     msg = [
         f"============================================================",
@@ -98,6 +98,7 @@ def print_status(args, bt_status=None, hci_dev="Not provided"):
         f" Flow Ctrl:   {'Hardware (RTS/CTS)' if args.rtscts else 'None'}",
         f" Bluetooth:   {bt_status}" if bt_status else None,
         f" HCI Intf:    {hci_dev}" if bt_status else None,
+        f" OT daemon:   {ot_status}" if ot_status else None,
         f"------------------------------------------------------------",
         f" {'CHANNEL':<12} | {'PTY DEVICE'}",
         f"------------------------------------------------------------",
@@ -195,6 +196,9 @@ async def main():
     parser.add_argument("--log-rx", action="store_true",
                         help="Log RX frames only")
     parser.add_argument("--bt-attach", action="store_true", help="Automatically run btattach on the BLE PTY")
+    parser.add_argument("--ot-manager", default="None",
+                         choices=["None", "ot-daemon", "otbr-agent"],
+                         help="Automatically run selected manager on OT PTY")
     parser.add_argument("--log-tx", action="store_true",
                         help="Log TX frames only")
     parser.add_argument("--channel", type=lambda x: int(x, 0),
@@ -281,12 +285,17 @@ async def main():
     def stdin_handler():
         char = sys.stdin.read(1)
         if char.lower() == 'i':
-            print_status(args, bt_status, hci_dev)
+            print_status(args, bt_status, hci_dev, ot_status)
 
-# Identify BLE PTY for Bluetooth attachment
+# Identify BLE and OT PTY for Bluetooth/OT attachment
     ble_pty = next((p for p in ptys if p.name == "BLE"), None)
     bt_proc = None
     bt_status = None
+    hci_dev = None
+
+    ot_pty = next((p for p in ptys if p.name == "OT"), None)
+    ot_proc = None
+    ot_status = None
 
     if args.bt_attach and ble_pty:
         # We must use the slave path for btattach
@@ -308,6 +317,24 @@ async def main():
         except Exception as e:
             bt_status = f"Failed to start: {e}"
 
+    if args.ot_manager != "None" and ot_pty:
+        slave_path = os.ttyname(ot_pty.slave)
+        daemon = args.ot_manager
+        daemon_args = [daemon]
+        if daemon == "otbr-agent":
+            daemon_args += ["-I", "wpan0", "-B", "eth0"]
+
+        daemon_args.append(f"spinel+hdlc+uart://{slave_path}?uart-baudrate={args.baudrate}&{'uart-flow-control' if args.rtscts else ''}")
+        try:
+            ot_proc = await asyncio.create_subprocess_exec(
+                "sudo", *daemon_args,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+            )
+            await asyncio.sleep(1.5)
+            ot_status = f"{daemon} active on {slave_path} (PID: {ot_proc.pid})"
+        except Exception as e:
+            ot_status = f"{daemon} failed to start: {e}"
+
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
@@ -316,7 +343,7 @@ async def main():
         for p_desc in ptys:
             loop.add_reader(p_desc.master, pty_reader, p_desc.master, p_desc.channel_id)
 
-        print_status(args, bt_status, hci_dev)
+        print_status(args, bt_status, hci_dev, ot_status)
         await uart_rx()
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
