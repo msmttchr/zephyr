@@ -108,11 +108,12 @@ def print_status(args, bt_status=None, hci_dev="Not provided", ot_status=None):
 
     msg += [
         f"------------------------------------------------------------",
-        f" [ Press 'i' to show this status  |  'q' to Exit  |  Ctrl+C to Exit ]",
+        f" [ Press 'i' to show this status  |  'q' to Exit  | ",
+        f"   Ctrl+C to Exit ]",
         f"============================================================",
     ]
     msg = (x for x in msg if x is not None)
-    msg = "\n".join(msg)
+    msg = "\r\n".join(msg)
     raw_print(msg)
 
 # ================= ST Frame RX =================
@@ -265,11 +266,16 @@ async def main():
     frame_handler = STFrameReceiver(on_frame, log_rx, log_channels)
 
     async def uart_rx():
-        while True:
-            data = await reader.read(1024)
-            if not data:
-                break
-            frame_handler.feed(data)
+        try:
+            while True:
+                data = await reader.read(1024)
+                if not data:
+                    break
+                frame_handler.feed(data)
+        except asyncio.CancelledError:
+            # Optional: cleanup UART, flush buffers, log, etc.
+            raw_print("UART RX cancelled")
+            #raise
 
     def pty_reader(fd, ch):
         try:
@@ -287,7 +293,7 @@ async def main():
     # Store loop in outer scope so stdin_handler can stop it
     loop = asyncio.get_running_loop()
 
-    def stdin_handler():
+    def stdin_handler(stop_event):
         char = sys.stdin.read(1)
         if not char:
             return
@@ -295,7 +301,7 @@ async def main():
             print_status(args, bt_status, hci_dev, ot_status)
         elif char.lower() == 'q':
             raw_print("\r\nExiting on 'q'...")
-            loop.stop()
+            stop_event.set()
 
     # Identify BLE and OT PTY for Bluetooth/OT attachment
     ble_pty = next((p for p in ptys if p.name == "BLE"), None)
@@ -307,6 +313,7 @@ async def main():
     ot_proc = None
     ot_status = None
 
+    old_settings = termios.tcgetattr(sys.stdin)
     if args.bt_attach and ble_pty:
         # We must use the slave path for btattach
         slave_path = os.ttyname(ble_pty.slave)
@@ -317,7 +324,7 @@ async def main():
             )
             await asyncio.sleep(1.5)
             # Detect HCI Interface
-            h_proc = await asyncio.create_subprocess_shell("hciconfig", stdout=asyncio.subprocess.PIPE)
+            h_proc = await asyncio.create_subprocess_shell("hciconfig", stdout=asyncio.subprocess.PIPE, stdin=subprocess.DEVNULL)
             stdout, _ = await h_proc.communicate()
             match = re.search(r"(hci\d+):", stdout.decode())
             if match:
@@ -345,15 +352,22 @@ async def main():
         except Exception as e:
             ot_status = f"{daemon} failed to start: {e}"
 
-    old_settings = termios.tcgetattr(sys.stdin)
     try:
+        # Restore old settings as previous subprocess may have changed them
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        stop_event = asyncio.Event()
         tty.setcbreak(sys.stdin.fileno())
-        loop.add_reader(sys.stdin, stdin_handler)
+        loop.add_reader(sys.stdin, stdin_handler, stop_event)
         for p_desc in ptys:
             loop.add_reader(p_desc.master, pty_reader, p_desc.master, p_desc.channel_id)
 
         print_status(args, bt_status, hci_dev, ot_status)
-        await uart_rx()
+
+
+        rx_task = asyncio.create_task(uart_rx())
+        await stop_event.wait()          # wait for 'q'
+        rx_task.cancel()                 # interrupt reader.read()
+        await rx_task                    # let it exit cleanly
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
