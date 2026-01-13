@@ -1,24 +1,22 @@
-.. zephyr:code-sample:: uart_mux_rcp
-   :name: UART multiplexer with RCP and test applications
-   :relevant-api: uart async
-
-===============================
-UART Multiplexer RCP Repository
-===============================
+=========================
+OpenThread and BLE RCP
+=========================
 
 TL;DR (Quick Start)
-******************
+*******************
 
-This repository contains **two independent applications** sharing the
-same UART multiplexer implementation.
+This repository contains a **main OpenThread + BLE RCP application** and a
+**UART multiplexer test side application** that share the same UART
+multiplexer implementation.
 
-Build the **RCP application**:
+Build the **main RCP application** (recommended for normal use):
 
 .. code-block:: console
 
    west build -b <board> app_rcp
 
-Build the **UART mux test application** (recommended for validation):
+Build the **UART mux test side application** (for boards without radio
+or for UART multiplexer validation):
 
 .. code-block:: console
 
@@ -34,9 +32,9 @@ Overview
 This repository provides an **application-level UART multiplexer** and
 two applications that use it:
 
-- A full **Radio Co-Processor (RCP)** application
-- A **UART multiplexer test application** for validation and stress
-  testing
+- **app_rcp/**: the main **OpenThread and BLE Radio Co-Processor (RCP) application**
+- **app_uart_mux_test/**: a **UART multiplexer test side application**
+  intended for validation and for boards without radio hardware
 
 The UART multiplexer allows multiple independent virtual UART devices
 to share a single physical UART using a framed protocol and the Zephyr
@@ -56,6 +54,8 @@ Repository Structure
    ├── src/
    │   ├── uart_mux.c
    │   └── uart_mux.h
+   ├── scripts/
+   │   └── uart_asyncio.py
    ├── dts/
    │   └── bindings/
    │       └── uart/
@@ -98,18 +98,27 @@ Detailed documentation is provided in ``UART_MUX.md``.
 Building the Applications
 *************************
 
-This repository contains two independent applications. Each must be
-built explicitly by selecting its directory.
+This repository contains two applications:
+
+- The **main OpenThread + BLE RCP application** (:file:`app_rcp/`)
+- The **UART mux test side application** (:file:`app_uart_mux_test/`)
+
+Each must be built explicitly by selecting its directory.
 
 ---
 
-Building the RCP Application
-============================
+Building the OpenThread and BLE RCP Application (main)
+======================================================
 
-The RCP application is located in the ``app_rcp/`` directory.
+The main RCP application is located in the ``app_rcp/`` directory.
 
 It implements the full device functionality and uses the UART
-multiplexer to expose multiple logical channels to a host processor.
+multiplexer to expose multiple logical channels to a host processor,
+typically:
+
+- An OpenThread RCP interface (Spinel) over one virtual UART channel
+- A BLE HCI interface over another virtual UART channel
+- Optional additional channels (e.g. system console or diagnostics)
 
 To build the RCP application:
 
@@ -120,24 +129,34 @@ To build the RCP application:
 Replace ``<board>`` with your target board name.
 
 Board-specific Devicetree overlays are used to configure:
+
 - The physical UART used by the multiplexer
 - Virtual UART channels
 - Channel priorities and routing
 
 Refer to the board overlay files in ``app_rcp/boards/`` for details.
 
+The following diagrams shows the connection of a NUCLEO-WBA65RI to a Ubuntu PC.
+
+.. image:: app_rcp/app_rcp_diagram.png
+   :alt: RCP connection to Ubuntu PC
+   :width: 400px
+   :align: center
+
 ---
 
-Building the UART Mux Test Application
-=====================================
+Building the UART Mux Test Side Application
+===========================================
 
 The UART multiplexer test application is located in the
 ``app_uart_mux_test/`` directory.
 
-This application is intended for:
+This side application is intended for:
+
 - Functional validation of the UART multiplexer
 - Stress testing TX arbitration and RX routing
-- Development without requiring real radio hardware
+- Development and debug **on boards without radio hardware**
+- Host‑side implementation bring‑up of the framing protocol
 
 To build the test application:
 
@@ -147,7 +166,8 @@ To build the test application:
 
 The test application instantiates multiple virtual UART channels and
 runs independent threads that generate and consume traffic on each
-channel.
+channel. It focuses on exercising the UART multiplexer itself rather
+than providing full OpenThread/BLE RCP functionality.
 
 ---
 
@@ -156,6 +176,8 @@ Requirements
 
 - Board with asynchronous UART API support
 - One available UART peripheral
+- For the main RCP application:
+  - A board with radio hardware supported by :file:`app_rcp`
 - Host-side software implementing the framing protocol (for RCP usage)
 
 ---
@@ -165,4 +187,3 @@ Limitations
 
 - Only one frame may be in flight on the physical UART at a time
 - The framing protocol is proprietary and requires host-side support
-

@@ -108,7 +108,7 @@ def print_status(args, bt_status=None, hci_dev="Not provided", ot_status=None):
 
     msg += [
         f"------------------------------------------------------------",
-        f" [ Press 'i' to show this status  |  Ctrl+C to Exit ]",
+        f" [ Press 'i' to show this status  |  'q' to Exit  |  Ctrl+C to Exit ]",
         f"============================================================",
     ]
     msg = (x for x in msg if x is not None)
@@ -246,10 +246,11 @@ async def main():
     for pty_desc in ptys:
         ptys_by_chan_id[pty_desc.channel_id] = pty_desc
 
-# Serial Connection
+    # Serial Connection
     reader, writer = await serial_asyncio.open_serial_connection(
         url=args.port,
-        baudrate=args.baudrate
+        baudrate=args.baudrate,
+        rtscts=args.rtscts,
     )
 
     def on_frame(plc, payload):
@@ -280,14 +281,23 @@ async def main():
                     logger.debug(f"TX frame (ch={ch:02x}, plc={plc:02x}):\r\n{hexdump(frame):s}\r")
                     logger.debug(f"TX data:\r\n{hexdump(data):s}\r")
                 writer.write(frame)
-        except OSError: pass
+        except OSError:
+            pass
+
+    # Store loop in outer scope so stdin_handler can stop it
+    loop = asyncio.get_running_loop()
 
     def stdin_handler():
         char = sys.stdin.read(1)
+        if not char:
+            return
         if char.lower() == 'i':
             print_status(args, bt_status, hci_dev, ot_status)
+        elif char.lower() == 'q':
+            raw_print("\r\nExiting on 'q'...")
+            loop.stop()
 
-# Identify BLE and OT PTY for Bluetooth/OT attachment
+    # Identify BLE and OT PTY for Bluetooth/OT attachment
     ble_pty = next((p for p in ptys if p.name == "BLE"), None)
     bt_proc = None
     bt_status = None
@@ -338,7 +348,6 @@ async def main():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        loop = asyncio.get_running_loop()
         loop.add_reader(sys.stdin, stdin_handler)
         for p_desc in ptys:
             loop.add_reader(p_desc.master, pty_reader, p_desc.master, p_desc.channel_id)
