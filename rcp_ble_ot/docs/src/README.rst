@@ -138,7 +138,7 @@ Refer to the board overlay files in ``app_rcp/boards/`` for details.
 
 The following diagram shows the connection of a NUCLEO-WBA65RI to a Ubuntu PC.
 
-.. image:: app_rcp/app_rcp_diagram.png
+.. image:: app_rcp_diagram.png
    :alt: RCP connection to Ubuntu PC
    :width: 400px
    :align: center
