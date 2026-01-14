@@ -1,0 +1,52 @@
+name: Sync HTML Docs
+
+on:
+  push:
+    branches:
+      - rcp_ble_ot
+    paths:
+      - 'docs/src/**'
+  workflow_dispatch:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Sphinx
+        run: pip install sphinx sphinx_rtd_theme myst-parser
+
+      - name: Build HTML
+        run: |
+          # Clean old files but keep the directory
+          mkdir -p docs/html
+          rm -rf docs/html/*
+          # Build from docs/src to docs/html
+          sphinx-build -b html docs/src docs/html
+
+      - name: Commit and Push
+        run: |
+          # Use the official GitHub Actions Bot identity
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Force add in case docs/html is in .gitignore
+          git add -f docs/html
+          
+          if git diff --staged --quiet; then
+            echo "No documentation changes to commit."
+          else
+            git commit -m "docs: sync html with src [skip ci]"
+            git push
+          fi
