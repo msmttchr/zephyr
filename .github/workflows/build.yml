@@ -4,6 +4,23 @@ on:
   push:
     branches:
       - rcp_ble_ot
+    paths:
+      - 'rcp_ble_ot/app_rcp/**'      # Your specific apps
+      - 'rcp_ble_ot/src/**'      # Your specific apps
+      - 'include/**'         # Zephyr headers
+      - 'drivers/**'         # Zephyr drivers
+      - 'subsys/**'          # Zephyr subsystems (Bluetooth, Networking, etc.)
+      - 'kernel/**'          # Zephyr kernel code
+      - 'boards/**'          # Board definitions
+      - 'west.yml'           # Dependency changes
+      - 'CMakeLists.txt'     # Top-level build logic
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'scripts/**'
+      - 'rcp_ble_ot/docs/**'
+      - 'rcp_ble_ot/scripts/**'
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
