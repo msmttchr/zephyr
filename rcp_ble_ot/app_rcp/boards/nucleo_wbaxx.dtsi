@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2025 STMicroelectronics
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	uart_mux_bt: uart-mux-bt {
+		compatible = "st,uart-mux";
+			priority = <0>;   /* BLE HCI – highest */
+			plc_tx = <0x91>; /* Specified in payload */
+			plc_rx = [91];
+			status = "okay";
+	};
+
+	uart_mux_ot: uart-mux-ot {
+		compatible = "st,uart-mux";
+			priority = <1>;   /* OpenThread */
+			plc_tx = <0x92>; /* Specified in payload */
+			plc_rx = [92];
+         	status = "okay";
+        };
+
+	uart_mux_sys: uart-mux-sys {
+		compatible = "st,uart-mux";
+		priority = <2>;   /* system / logs */
+		plc_tx = <0x90>;
+		plc_rx = [90];
+         	status = "okay";		
+	};
+
+	chosen {
+		zephyr,bt-c2h-uart = &uart_mux_bt;
+		zephyr,ot-uart = &uart_mux_ot;
+		uart-mux = &usart_mux;
+		zephyr,console = &usart_console;
+	};
+};

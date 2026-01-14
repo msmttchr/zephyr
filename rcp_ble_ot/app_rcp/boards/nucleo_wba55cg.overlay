@@ -8,14 +8,14 @@ usart_console: &usart1 {
 	status = "okay";
 };
 
-usart_mux: &usart2 {
+usart_mux: &lpuart1 {
 	clocks = <&rcc STM32_CLOCK(APB1, 17)>,
 		<&rcc STM32_SRC_SYSCLK USART2_SEL(1)>;
-	dmas = <&gpdma1 0 14 STM32_DMA_PERIPH_TX>,
-	       <&gpdma1 1 13 (STM32_DMA_PERIPH_RX | STM32_DMA_MODE_CYCLIC)>;
+	dmas = <&gpdma1 0 16 STM32_DMA_PERIPH_TX>,
+	       <&gpdma1 1 15 (STM32_DMA_PERIPH_RX | STM32_DMA_MODE_CYCLIC)>;
 	dma-names = "tx", "rx";
-	pinctrl-0 = < &usart2_tx_pa12 &usart2_rx_pa11 &usart2_rts_pa15 &usart2_cts_pb15 >;
-	pinctrl-1 = < &analog_pa12 &analog_pa11 &analog_pa15 &analog_pb15 >;
+	pinctrl-0 = <&lpuart1_tx_pb5 &lpuart1_rx_pa10 &lpuart1_rts_pb9 &lpuart1_cts_pb15>;
+	pinctrl-1 = <&analog_pb5 &analog_pa10 &analog_pb9 &analog_pb15>;
 	pinctrl-names = "default",
 	                "sleep";
 	hw-flow-control;
