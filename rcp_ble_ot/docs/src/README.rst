@@ -5,15 +5,15 @@ OpenThread and BLE RCP
 TL;DR (Quick Start)
 *******************
 
-This repository contains a **main OpenThread + BLE RCP application** and a
+This repository contains a **OpenThread + BLE Radio Coprocessor (RCP) application** and a
 **UART multiplexer test side application** that share the same UART
 multiplexer implementation.
 
-Build the **main RCP application** (recommended for normal use):
+Build the **RCP application** (recommended for normal use):
 
 .. code-block:: console
 
-   west build -b <board> app_rcp
+   west build -b nucleo_wba65ri app_rcp
 
 Build the **UART mux test side application** (for boards without radio
 or for UART multiplexer validation):
@@ -55,7 +55,7 @@ Repository Structure
    │   ├── uart_mux.c
    │   └── uart_mux.h
    ├── scripts/
-   │   └── uart_asyncio.py
+   │   └── uart_mux_asyncio.py
    ├── dts/
    │   └── bindings/
    │       └── uart/
@@ -126,7 +126,7 @@ To build the RCP application:
 
    west build -b <board> app_rcp
 
-Replace ``<board>`` with your target board name.
+Replace ``<board>`` with your target STM32WBA board name, e.g: `nucleo_wba65ri` or `nucleowba55cg`
 
 Board-specific Devicetree overlays are used to configure:
 
