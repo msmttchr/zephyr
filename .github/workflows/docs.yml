@@ -30,10 +30,10 @@ jobs:
       - name: Build HTML
         run: |
           # Clean old files but keep the directory
-          mkdir -p docs/html
-          rm -rf docs/html/*
+          mkdir -p rcp_ble_ot/docs/html
+          rm -rf rcp_ble_ot/docs/html/*
           # Build from docs/src to docs/html
-          sphinx-build -b html docs/src docs/html
+          sphinx-build -b html rcp_ble_ot/docs/src rcp_ble_ot/docs/html
 
       - name: Commit and Push
         run: |
@@ -42,7 +42,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
           
           # Force add in case docs/html is in .gitignore
-          git add -f docs/html
+          git add -f rcp_ble_ot/docs/html
           
           if git diff --staged --quiet; then
             echo "No documentation changes to commit."
