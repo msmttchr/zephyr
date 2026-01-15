@@ -1,4 +1,6 @@
 name: Build RCP BLE OT and Docs
+permissions:
+  contents: write
 
 on:
   push:
@@ -43,6 +45,7 @@ jobs:
       # Generates a 7-character short SHA for naming
       - name: Set Short SHA
         id: vars
+        working-directory: zephyr
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Set Workspace Permissions
@@ -55,6 +58,7 @@ jobs:
             -w /workdir \
             ghcr.io/zephyrproject-rtos/zephyr-build:main \
             /bin/bash -c "
+              git config --global --add safe.directory /workdir/zephyr && \
               cd zephyr && \
               west init -l . && \
               west update --narrow -o=--depth=1 && \
