@@ -75,9 +75,9 @@ jobs:
           pip install sphinx sphinx_rtd_theme myst-parser
           # Debug: List files to see exactly where we are
           echo "Current directory: $(pwd)"
-          ls -R .
-          rm -rf rcp_ble_ot/docs/html/*
-          sphinx-build -b html rcp_ble_ot/docs/src zephyr/docs/html
+          ls zephyr
+          rm -rf zephyr/rcp_ble_ot/docs/html/*
+          sphinx-build -b html zephyr/rcp_ble_ot/docs/src zephyr/rcp_ble_ot/docs/html
 
       - name: Commit HTML back to Repo
         if: matrix.board == 'nucleo_wba65ri'
