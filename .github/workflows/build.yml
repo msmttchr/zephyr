@@ -10,7 +10,6 @@ on:
       - 'drivers/**'
       - 'subsys/**'
       - 'boards/**'
-      - 'docs/src/**'
       - 'west.yml'
   workflow_dispatch:
 
@@ -74,8 +73,8 @@ jobs:
         if: matrix.board == 'nucleo_wba65ri'
         run: |
           pip install sphinx sphinx_rtd_theme myst-parser
-          rm -rf zephyr/docs/html/*
-          sphinx-build -b html zephyr/docs/src zephyr/docs/html
+          rm -rf rcp_ble_ot/docs/html/*
+          sphinx-build -b html rcp_ble_ot/docs/src zephyr/docs/html
 
       - name: Commit HTML back to Repo
         if: matrix.board == 'nucleo_wba65ri'
@@ -83,7 +82,7 @@ jobs:
           cd zephyr
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add -f docs/html
+          git add -f rcp_ble_ot/docs/html
           if git diff --staged --quiet; then
             echo "No doc changes."
           else
@@ -98,4 +97,4 @@ jobs:
           name: rcp-bundle-${{ matrix.board }}-${{ steps.vars.outputs.sha_short }}
           path: |
             ${{ matrix.bin_name }}_${{ matrix.board }}.bin
-            zephyr/docs/html/
+            rcp_ble_ot/docs/html/
