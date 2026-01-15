@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>UART Multiplexer &#8212; RCP BLE and Openthread 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Getting Started with Nucleo-WBA65RI on Ubuntu" href="nucleo_ubuntu.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+             accesskey="P">previous</a></li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">UART Multiplexer</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <section id="uart-multiplexer">
+<span id="id1"></span><h1>UART Multiplexer</h1>
+<section id="overview">
+<h2>Overview</h2>
+<p>The UART multiplexer allows multiple independent <strong>virtual UART devices</strong>
+to share a single <strong>physical asynchronous UART</strong>.</p>
+<p>Each virtual UART appears to the system as a normal Zephyr UART device,
+while all data is transported over a single physical UART using a
+framed multiplexing protocol.</p>
+<p>The multiplexer is implemented at the <strong>application level</strong> and does not
+modify or extend Zephyr core UART drivers.</p>
+<p>Configuration, routing, and prioritization are entirely driven by
+Devicetree.</p>
+</section>
+<section id="user-point-of-view">
+<h2>User Point of View</h2>
+<section id="what-problem-does-the-uart-mux-solve">
+<h3>What problem does the UART mux solve?</h3>
+<p>Some systems need to expose multiple logical UART channels to a host
+while having only one physical UART available.</p>
+<p>The UART multiplexer solves this by:</p>
+<ul class="simple">
+<li><p>Serializing traffic from multiple virtual UARTs</p></li>
+<li><p>Framing data on a shared physical UART</p></li>
+<li><p>Routing received frames back to the correct virtual UART</p></li>
+</ul>
+<p>The user interacts only with virtual UART devices and does not need to
+handle framing or routing manually.</p>
+</section>
+<section id="virtual-uarts">
+<h3>Virtual UARTs</h3>
+<p>Each virtual UART:</p>
+<ul class="simple">
+<li><p>Is instantiated from Devicetree</p></li>
+<li><p>Appears as a standard Zephyr UART device</p></li>
+<li><p>Can be referenced using <code class="docutils literal notranslate"><span class="pre">chosen</span></code> nodes</p></li>
+<li><p>Has independent RX and TX paths</p></li>
+</ul>
+<p>From the user’s perspective, using a virtual UART is no different from
+using a physical UART.</p>
+</section>
+<section id="configuration-via-devicetree">
+<h3>Configuration via Devicetree</h3>
+<p>Virtual UARTs are configured entirely in Devicetree.</p>
+<p>Key properties include:</p>
+<dl class="simple">
+<dt>Priority</dt><dd><p>Determines TX arbitration order (lower value = higher priority).</p>
+</dd>
+<dt>PLC TX</dt><dd><p>Determines how the PLC field is set on transmission.</p>
+</dd>
+<dt>PLC RX</dt><dd><p>List of PLC values that are routed to this virtual UART.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>No application code changes are required to add, remove, or reorder
+virtual UART channels.</p>
+</div>
+</section>
+<section id="adding-a-new-virtual-uart">
+<h3>Adding a new virtual UART</h3>
+<p>To add a new virtual UART channel:</p>
+<ol class="arabic simple">
+<li><p>Add a new UART mux child node in the board overlay.</p></li>
+<li><p>Assign a unique priority.</p></li>
+<li><p>Configure PLC TX and PLC RX values.</p></li>
+<li><p>Optionally bind it using a <code class="docutils literal notranslate"><span class="pre">chosen</span></code> node.</p></li>
+</ol>
+<p>The UART multiplexer automatically includes the new channel at runtime.</p>
+</section>
+<section id="what-the-user-does-not-need-to-handle">
+<h3>What the user does NOT need to handle</h3>
+<p>The user does <strong>not</strong> need to:</p>
+<ul class="simple">
+<li><p>Handle framing bytes</p></li>
+<li><p>Compute or verify CRCs</p></li>
+<li><p>Manage RX reassembly</p></li>
+<li><p>Coordinate access to the physical UART</p></li>
+<li><p>Implement arbitration logic</p></li>
+</ul>
+<p>All of this is handled internally by the multiplexer.</p>
+</section>
+</section>
+<section id="software-design-point-of-view">
+<h2>Software Design Point of View</h2>
+<section id="high-level-architecture">
+<h3>High-level architecture</h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>+----------------------+
+| Virtual UART Device  |
++---------+------------+
+          |
++---------v------------+
+|   UART Mux Driver    |
+|----------------------|
+| TX scheduler         |
+| RX state machine     |
+| PLC routing          |
++---------+------------+
+          |
++---------v------------+
+| Physical UART (ASYNC)|
++----------------------+
+</pre></div>
+</div>
+</section>
+<section id="framing-protocol">
+<h3>Framing protocol</h3>
+<p>All data on the physical UART is exchanged using framed packets:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field name</p></th>
+<th class="head"><p>FI</p></th>
+<th class="head"><p>FF</p></th>
+<th class="head"><p>LEN(LE16)</p></th>
+<th class="head"><p>PLC</p></th>
+<th class="head"><p>PAYLOAD</p></th>
+<th class="head"><p>CRC16(LE)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Size in Bytes</p></td>
+<td><p>1</p></td>
+<td><p>1</p></td>
+<td><p>2</p></td>
+<td><p>1</p></td>
+<td><p>LEN</p></td>
+<td><p>2</p></td>
+</tr>
+<tr class="row-odd"><td><p>Example</p></td>
+<td><p>C0</p></td>
+<td><p>02</p></td>
+<td><p>04 00</p></td>
+<td><p>40</p></td>
+<td><p>payload</p></td>
+<td><p>ED 55</p></td>
+</tr>
+</tbody>
+</table>
+<p>Where:</p>
+<dl class="simple">
+<dt>FI / FF</dt><dd><p>Fixed framing bytes.</p>
+</dd>
+<dt>LEN</dt><dd><p>Length of <code class="docutils literal notranslate"><span class="pre">PAYLOAD</span></code> in bytes (little-endian).</p>
+</dd>
+<dt>PLC</dt><dd><p>Protocol Link Context (routing field).</p>
+</dd>
+<dt>PAYLOAD</dt><dd><p>Channel-specific data.</p>
+</dd>
+<dt>CRC16</dt><dd><p>CRC-16-CCITT (little-endian), including the FI byte.</p>
+</dd>
+</dl>
+</section>
+<section id="plc-handling">
+<h3>PLC handling</h3>
+<p>The PLC field is used for <strong>RX routing</strong> and <strong>TX identification</strong>.
+PLC behavior is fully defined by Devicetree:</p>
+<dl class="simple">
+<dt>TX</dt><dd><ul class="simple">
+<li><p>PLC can be injected from a fixed value.</p></li>
+<li><p>Or extracted from the first byte of the virtual UART payload.</p></li>
+</ul>
+</dd>
+<dt>RX</dt><dd><ul class="simple">
+<li><p>Each channel defines which PLC values it accepts.</p></li>
+<li><p>Delivery may include or exclude the PLC byte depending on channel type.</p></li>
+</ul>
+</dd>
+</dl>
+<p>The multiplexer itself remains protocol-agnostic.</p>
+</section>
+<section id="tx-path">
+<h3>TX path</h3>
+<ol class="arabic simple">
+<li><p>A virtual UART submits a TX buffer.</p></li>
+<li><p>The multiplexer determines the PLC value.</p></li>
+<li><p>A frame descriptor is allocated from a fixed slab.</p></li>
+<li><p>Frame header, payload, and CRC are transmitted sequentially.</p></li>
+<li><p>TX completion is reported only after the full frame is sent.</p></li>
+</ol>
+<p>Only one frame is transmitted at a time on the physical UART. TX arbitration between channels is priority-based.</p>
+</section>
+<section id="rx-path">
+<h3>RX path</h3>
+<ol class="arabic simple">
+<li><p>Bytes are received asynchronously from the physical UART.</p></li>
+<li><p>A state machine reconstructs frames.</p></li>
+<li><p>Length and CRC are validated.</p></li>
+<li><p>PLC value is extracted.</p></li>
+<li><p>The destination channel is selected.</p></li>
+<li><p>Payload is delivered to the corresponding virtual UART.</p></li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Frames with invalid CRC or unknown PLC values are dropped silently.</p>
+</div>
+</section>
+<section id="memory-model">
+<h3>Memory model</h3>
+<p>The UART multiplexer uses deterministic memory allocation:</p>
+<ul class="simple">
+<li><p>Fixed-size RX buffer</p></li>
+<li><p>Fixed-size TX slab</p></li>
+<li><p>No heap allocation</p></li>
+<li><p>No unbounded queues</p></li>
+</ul>
+<p>This ensures predictable RAM usage and real-time behavior.</p>
+</section>
+<section id="concurrency-model">
+<h3>Concurrency model</h3>
+<ul class="simple">
+<li><p>Physical UART operates using Zephyr’s asynchronous UART API.</p></li>
+<li><p>Virtual UARTs do not need to use async APIs.</p></li>
+<li><p>Internal serialization ensures safe access to the physical UART.</p></li>
+<li><p>All callbacks are short and non-blocking.</p></li>
+</ul>
+</section>
+<section id="design-goals">
+<h3>Design goals</h3>
+<ul class="simple">
+<li><p>Protocol-agnostic transport.</p></li>
+<li><p>Devicetree-driven configuration.</p></li>
+<li><p>Deterministic memory usage.</p></li>
+<li><p>Clear separation between transport and application logic.</p></li>
+<li><p>Minimal coupling to Zephyr internals.</p></li>
+</ul>
+</section>
+</section>
+<section id="summary">
+<h2>Summary</h2>
+<p>The UART multiplexer provides a flexible and reusable solution for
+transporting multiple virtual UART channels over a single physical UART.</p>
+<p>Its behavior is fully configurable via Devicetree, requires no runtime
+reconfiguration, and integrates cleanly with existing Zephyr UART APIs.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+             >previous</a></li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">UART Multiplexer</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2026, STMicroelectronics.
+      Last updated on 2026-01-15 03:37:12.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    </div>
+  </body>
+</html>
