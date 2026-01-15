@@ -34,6 +34,6 @@ html_permalinks = False
 html_use_index = False
 # This will add "Last updated on: Jan 14, 2026" (or current date) to the footer
 # html_last_updated_fmt = '%b %d, %Y'
-
+#
 # Optional: If you want to show the specific time as well:
 html_last_updated_fmt = '%Y-%m-%d %H:%M:%S'
