@@ -1,43 +1,37 @@
-name: Build RCP BLE OT Applications
+name: Build RCP BLE OT and Docs
 
 on:
   push:
     branches:
       - rcp_ble_ot
     paths:
-      - 'rcp_ble_ot/app_rcp/**'      # Your specific apps
-      - 'rcp_ble_ot/src/**'      # Your specific apps
-      - 'include/**'         # Zephyr headers
-      - 'drivers/**'         # Zephyr drivers
-      - 'subsys/**'          # Zephyr subsystems (Bluetooth, Networking, etc.)
-      - 'kernel/**'          # Zephyr kernel code
-      - 'boards/**'          # Board definitions
-      - 'west.yml'           # Dependency changes
-      - 'CMakeLists.txt'     # Top-level build logic
-
-  # Allows you to run this workflow manually from the Actions tab
+      - 'rcp_ble_ot/**'
+      - 'include/**'
+      - 'drivers/**'
+      - 'subsys/**'
+      - 'boards/**'
+      - 'docs/src/**'
+      - 'west.yml'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - app_path: rcp_ble_ot/app_uart_mux_test
-            board: nucleo_l152re
-            bin_name: uart_mux_test
-          - app_path: rcp_ble_ot/app_rcp
-            board: nucleo_wba65ri
+          - board: nucleo_wba65ri
+            app_path: rcp_ble_ot/app_rcp
             bin_name: rcp_app
+          # - board: nucleo_wba55cg
+          #   app_path: rcp_ble_ot/app_rcp
+          #   bin_name: rcp_app
 
     steps:
       - name: Free Disk Space
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo docker image prune --all --force
 
       - name: Checkout code
@@ -45,12 +39,17 @@ jobs:
         with:
           ref: rcp_ble_ot
           path: zephyr
-          fetch-depth: 1
+          fetch-depth: 0
+
+      # Generates a 7-character short SHA for naming
+      - name: Set Short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Set Workspace Permissions
         run: sudo chmod -R 777 ${{ github.workspace }}
 
-      - name: Build in Zephyr Container
+      - name: Build Firmware in Zephyr Container
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/workdir \
@@ -61,13 +60,42 @@ jobs:
               west init -l . && \
               west update --narrow -o=--depth=1 && \
               west blobs fetch hal_stm32 && \
-              west build -b ${{ matrix.board }} ${{ matrix.app_path }} && \
+              west build -b ${{ matrix.board }} ${{ matrix.app_path }} -p always && \
               cp build/zephyr/zephyr.bin ../${{ matrix.bin_name }}_${{ matrix.board }}.bin
             "
 
-      - name: Upload Binary
+      - name: Set up Python
+        if: matrix.board == 'nucleo_wba65ri'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build HTML Documentation
+        if: matrix.board == 'nucleo_wba65ri'
+        run: |
+          pip install sphinx sphinx_rtd_theme myst-parser
+          rm -rf zephyr/docs/html/*
+          sphinx-build -b html zephyr/docs/src zephyr/docs/html
+
+      - name: Commit HTML back to Repo
+        if: matrix.board == 'nucleo_wba65ri'
+        run: |
+          cd zephyr
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -f docs/html
+          if git diff --staged --quiet; then
+            echo "No doc changes."
+          else
+            git commit -m "docs: auto-update html [skip ci]"
+            git push
+          fi
+
+      - name: Upload Combined Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.bin_name }}-${{ matrix.board }}
-          path: ${{ matrix.bin_name }}_${{ matrix.board }}.bin
-
+          # Resulting name example: rcp-bundle-nucleo_wba65ri-a1b2c3d
+          name: rcp-bundle-${{ matrix.board }}-${{ steps.vars.outputs.sha_short }}
+          path: |
+            ${{ matrix.bin_name }}_${{ matrix.board }}.bin
+            zephyr/docs/html/
