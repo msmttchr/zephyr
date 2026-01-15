@@ -5,7 +5,7 @@ on:
     branches:
       - rcp_ble_ot
     paths:
-      - 'docs/src/**'
+      - 'rcp_ble_ot/docs/src/**'
   workflow_dispatch:
 
 jobs:
