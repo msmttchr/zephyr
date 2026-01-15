@@ -1,7 +1,7 @@
 sample:
   name: UART multiplexer with RCP and test applications
   description: >
-    Repo providing an application-level UART multiplexer and
+    Repository providing an application-level UART multiplexer and
     two applications:
       - A full Radio Co-Processor (RCP) application
       - A UART multiplexer test application exercising multiple
