@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>OpenThread and BLE RCP &#8212; RCP BLE and Openthread 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting Started with Nucleo-WBA65RI on Ubuntu" href="nucleo_ubuntu.html" />
+    <link rel="prev" title="OpenThread and BLE RCP getting started" href="index.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="index.html" title="OpenThread and BLE RCP getting started"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">OpenThread and BLE RCP</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <section id="openthread-and-ble-rcp">
+<h1>OpenThread and BLE RCP</h1>
+<section id="tl-dr-quick-start">
+<h2>TL;DR (Quick Start)</h2>
+<p>This repository contains a <strong>OpenThread + BLE Radio Coprocessor (RCP) application</strong> and a
+<strong>UART multiplexer test side application</strong> that share the same UART
+multiplexer implementation.</p>
+<p>Build the <strong>RCP application</strong> (recommended for normal use):</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b nucleo_wba65ri app_rcp</span>
+</pre></div>
+</div>
+<p>Build the <strong>UART mux test side application</strong> (for boards without radio
+or for UART multiplexer validation):</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b nucleo_l152re app_uart_mux_test</span>
+</pre></div>
+</div>
+<p>For UART multiplexer details, see <code class="docutils literal notranslate"><span class="pre">UART_MUX.md</span></code>.</p>
+<p>—</p>
+</section>
+<section id="overview">
+<h2>Overview</h2>
+<p>This repository provides an <strong>application-level UART multiplexer</strong> and
+two applications that use it:</p>
+<ul class="simple">
+<li><p><strong>app_rcp/</strong>: the main <strong>OpenThread and BLE Radio Co-Processor (RCP) application</strong></p></li>
+<li><p><strong>app_uart_mux_test/</strong>: a <strong>UART multiplexer test side application</strong>
+intended for validation and for boards without radio hardware</p></li>
+</ul>
+<p>The UART multiplexer allows multiple independent virtual UART devices
+to share a single physical UART using a framed protocol and the Zephyr
+asynchronous UART API.</p>
+<p>All routing, prioritization, and framing behavior is configured via
+Devicetree.</p>
+<p>—</p>
+</section>
+<section id="repository-structure">
+<h2>Repository Structure</h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>rcp_ble_ot/
+├── src/
+│   ├── uart_mux.c
+│   └── uart_mux.h
+├── scripts/
+│   └── uart_mux_asyncio.py
+├── dts/
+│   └── bindings/
+│       └── uart/
+│           └── st,uart-mux.yaml
+├── app_rcp/
+│   ├── prj.conf
+│   ├── src/main.c
+│   └── boards/
+├── app_uart_mux_test/
+│   ├── prj.conf
+│   ├── src/main.c
+│   └── boards/
+├── UART_MUX.md
+├── README.rst
+└── sample.yaml
+</pre></div>
+</div>
+<p>The UART multiplexer implementation is shared between both applications
+and resides in the common <code class="docutils literal notranslate"><span class="pre">src/</span></code> directory.</p>
+<p>—</p>
+</section>
+<section id="uart-multiplexer">
+<h2>UART Multiplexer</h2>
+<p>The UART multiplexer provides:</p>
+<ul class="simple">
+<li><p>Multiple virtual UART devices</p></li>
+<li><p>Priority-based TX arbitration</p></li>
+<li><p>Framed transport with CRC protection</p></li>
+<li><p>Deterministic memory usage (no heap allocation)</p></li>
+<li><p>Protocol-agnostic routing using PLC values</p></li>
+</ul>
+<p>The multiplexer is implemented entirely at application level and does
+not modify Zephyr core drivers.</p>
+<p>Detailed documentation is provided in <code class="docutils literal notranslate"><span class="pre">UART_MUX.md</span></code>.</p>
+<p>—</p>
+</section>
+<section id="building-the-applications">
+<h2>Building the Applications</h2>
+<p>This repository contains two applications:</p>
+<ul class="simple">
+<li><p>The <strong>main OpenThread + BLE RCP application</strong> (<code class="file docutils literal notranslate"><span class="pre">app_rcp/</span></code>)</p></li>
+<li><p>The <strong>UART mux test side application</strong> (<code class="file docutils literal notranslate"><span class="pre">app_uart_mux_test/</span></code>)</p></li>
+</ul>
+<p>Each must be built explicitly by selecting its directory.</p>
+<p>—</p>
+<section id="building-the-openthread-and-ble-rcp-application-main">
+<h3>Building the OpenThread and BLE RCP Application (main)</h3>
+<p>The main RCP application is located in the <code class="docutils literal notranslate"><span class="pre">app_rcp/</span></code> directory.</p>
+<p>It implements the full device functionality and uses the UART
+multiplexer to expose multiple logical channels to a host processor,
+typically:</p>
+<ul class="simple">
+<li><p>An OpenThread RCP interface (Spinel) over one virtual UART channel</p></li>
+<li><p>A BLE HCI interface over another virtual UART channel</p></li>
+<li><p>Optional additional channels (e.g. system console or diagnostics)</p></li>
+</ul>
+<p>To build the RCP application:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b &lt;board&gt; app_rcp</span>
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">&lt;board&gt;</span></code> with your target STM32WBA board name, e.g: <cite>nucleo_wba65ri</cite> or <cite>nucleowba55cg</cite></p>
+<p>Board-specific Devicetree overlays are used to configure:</p>
+<ul class="simple">
+<li><p>The physical UART used by the multiplexer</p></li>
+<li><p>Virtual UART channels</p></li>
+<li><p>Channel priorities and routing</p></li>
+</ul>
+<p>Refer to the board overlay files in <code class="docutils literal notranslate"><span class="pre">app_rcp/boards/</span></code> for details.</p>
+<p>The following diagram shows the connection of a NUCLEO-WBA65RI to a Ubuntu PC.</p>
+<a class="reference internal image-reference" href="_images/app_rcp_diagram.png"><img alt="RCP connection to Ubuntu PC" class="align-center" src="_images/app_rcp_diagram.png" style="width: 400px;" />
+</a>
+<p>—</p>
+</section>
+<section id="building-the-uart-mux-test-side-application">
+<h3>Building the UART Mux Test Side Application</h3>
+<p>The UART multiplexer test application is located in the
+<code class="docutils literal notranslate"><span class="pre">app_uart_mux_test/</span></code> directory.</p>
+<p>This side application is intended for:</p>
+<ul class="simple">
+<li><p>Functional validation of the UART multiplexer</p></li>
+<li><p>Stress testing TX arbitration and RX routing</p></li>
+<li><p>Development and debug <strong>on boards without radio hardware</strong></p></li>
+<li><p>Host‑side implementation bring‑up of the framing protocol</p></li>
+</ul>
+<p>To build the test application:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b nucleo_l152re app_uart_mux_test</span>
+</pre></div>
+</div>
+<p>The test application instantiates multiple virtual UART channels and
+runs independent threads that generate and consume traffic on each
+channel. It focuses on exercising the UART multiplexer itself rather
+than providing full OpenThread/BLE RCP functionality.</p>
+<p>—</p>
+</section>
+</section>
+<section id="requirements">
+<h2>Requirements</h2>
+<ul class="simple">
+<li><p>Board with asynchronous UART API support</p></li>
+<li><p>One available UART peripheral</p></li>
+<li><p>For the main RCP application:
+- A board with radio hardware supported by <code class="file docutils literal notranslate"><span class="pre">app_rcp</span></code></p></li>
+<li><p>Host-side software implementing the framing protocol (for RCP usage)</p></li>
+</ul>
+<p>—</p>
+</section>
+<section id="limitations">
+<h2>Limitations</h2>
+<ul class="simple">
+<li><p>Only one frame may be in flight on the physical UART at a time</p></li>
+<li><p>The framing protocol is proprietary and requires host-side support</p></li>
+</ul>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+             >next</a></li>
+        <li class="right" >
+          <a href="index.html" title="OpenThread and BLE RCP getting started"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">OpenThread and BLE RCP</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2026, STMicroelectronics.
+      Last updated on 2026-01-15 03:37:12.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    </div>
+  </body>
+</html>

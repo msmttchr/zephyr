@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Getting Started with Nucleo-WBA65RI on Ubuntu &#8212; RCP BLE and Openthread 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="UART Multiplexer" href="uart_mux.html" />
+    <link rel="prev" title="OpenThread and BLE RCP" href="README.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="uart_mux.html" title="UART Multiplexer"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="README.html" title="OpenThread and BLE RCP"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Getting Started with Nucleo-WBA65RI on Ubuntu</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <section id="getting-started-with-nucleo-wba65ri-on-ubuntu">
+<span id="nucleo-wba65ri-comprehensive-setup"></span><h1>Getting Started with Nucleo-WBA65RI on Ubuntu</h1>
+<p>This guide describes how to:</p>
+<ul class="simple">
+<li><p>Prepare the <strong>NUCLEO-WBA65RI</strong> hardware (flow control configuration).</p></li>
+<li><p>Configure <strong>Ubuntu</strong> to work with the board without requiring root.</p></li>
+<li><p>Use the <strong>Python UART multiplexer</strong> to share a single UART with multiple
+software components (BLE, OpenThread, system console).</p></li>
+</ul>
+<p>After following these steps you will be able to connect to the board,
+debug with ST-LINK, and attach multiple protocol stacks to the same UART.</p>
+<section id="prerequisites">
+<h2>Prerequisites</h2>
+<p>Before you start, ensure you have:</p>
+<ul class="simple">
+<li><p>A NUCLEO-WBA65RI board.</p></li>
+<li><p>A Linux host running Ubuntu.</p></li>
+<li><p>Python 3 installed on the host.</p></li>
+</ul>
+</section>
+<section id="step-1-nucleo-board-setup">
+<h2>Step 1: NUCLEO Board Setup</h2>
+<section id="hardware-flow-control-configuration">
+<h3>Hardware Flow Control Configuration</h3>
+<p>To enable <strong>RTS/CTS</strong> hardware flow control on the secondary VCP, modify the
+solder bridges on the back of the PCB as follows:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Solder Bridge</p></th>
+<th class="head"><p>Position</p></th>
+<th class="head"><p>Function</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>SB4</strong></p></td>
+<td><p><strong>ON</strong> (Closed)</p></td>
+<td><p>Connects MCU_CTS to ST-Link RTS</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>SB7</strong></p></td>
+<td><p><strong>OFF</strong> (Open)</p></td>
+<td><p>Disconnects ETM.JTMI</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Use a fine-tip soldering iron and work under magnification if possible.
+Ensure SB7 is fully open to avoid signal contention on the ETM/JTMI line.</p>
+</div>
+</section>
+</section>
+<section id="step-2-ubuntu-setup">
+<h2>Step 2: Ubuntu Setup</h2>
+<p>In this step you configure Ubuntu so that:</p>
+<ul class="simple">
+<li><p>A normal user can access the serial ports.</p></li>
+<li><p>The system does not interfere with the Nucleo serial interface.</p></li>
+<li><p>ST-LINK can be used without <code class="code docutils literal notranslate"><span class="pre">sudo</span></code>.</p></li>
+</ul>
+<section id="system-permissions-conflicts">
+<h3>System Permissions &amp; Conflicts</h3>
+<ol class="arabic">
+<li><p><strong>Add the user to the dialout group</strong></p>
+<p>Grant permission to access serial devices:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>usermod<span class="w"> </span>-aG<span class="w"> </span>dialout<span class="w"> </span><span class="nv">$USER</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You must log out and log back in for this change to take effect.</p>
+</div>
+</li>
+<li><p><strong>Disable ModemManager</strong></p>
+<p>Prevent the system from sending AT commands to the Nucleo:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>stop<span class="w"> </span>ModemManager
+sudo<span class="w"> </span>systemctl<span class="w"> </span>disable<span class="w"> </span>ModemManager
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="st-link-udev-rules">
+<h3>ST-LINK Udev Rules</h3>
+<p>Create a udev rule to allow ST-LINK/V3 access without <code class="code docutils literal notranslate"><span class="pre">sudo</span></code>:</p>
+<ol class="arabic">
+<li><p><strong>Create the udev rules file</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>nano<span class="w"> </span>/etc/udev/rules.d/49-stlinkv3.rules
+</pre></div>
+</div>
+</li>
+<li><p><strong>Add the following content:</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># ST-LINK/V3
+SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374d&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374e&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374f&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+</pre></div>
+</div>
+</li>
+<li><p><strong>Reload udev rules:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>udevadm<span class="w"> </span>control<span class="w"> </span>--reload-rules
+sudo<span class="w"> </span>udevadm<span class="w"> </span>trigger
+</pre></div>
+</div>
+</li>
+</ol>
+<p>At this point, reconnect the Nucleo board’s USB cable to ensure the
+new rules are applied.</p>
+</section>
+</section>
+<section id="step-3-python-uart-multiplexer">
+<h2>Step 3: Python UART Multiplexer</h2>
+<section id="overview">
+<h3>Overview</h3>
+<p>The <code class="file docutils literal notranslate"><span class="pre">uart_mux_asyncio.py</span></code> script bridges a single physical UART port
+to multiple virtual PTYs. This allows you to run:</p>
+<ul class="simple">
+<li><p>A BLE stack (e.g., BlueZ via HCI)</p></li>
+<li><p>An OpenThread stack (via Spinel)</p></li>
+<li><p>A system console or management interface</p></li>
+</ul>
+<p>all over the same physical UART.</p>
+</section>
+<section id="installing-dependencies">
+<h3>Installing Dependencies</h3>
+<p>Install the asynchronous serial dependency:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyserial-asyncio
+</pre></div>
+</div>
+</section>
+<section id="basic-usage">
+<h3>Basic Usage</h3>
+<p>The script maps the physical port (for example, <code class="file docutils literal notranslate"><span class="pre">/dev/ttyACM1</span></code>) to
+three virtual channels.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic launch</span>
+python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span>
+
+<span class="c1"># Launch with automatic Bluetooth and OpenThread attachment</span>
+sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--bt-attach<span class="w"> </span>--ot-manager<span class="w"> </span>ot-daemon
+</pre></div>
+</div>
+</section>
+<section id="key-command-line-arguments">
+<h3>Key Command-Line Arguments</h3>
+<ul class="simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">--port</span></code>:
+Serial port device (default: <code class="file docutils literal notranslate"><span class="pre">/dev/ttyACM0</span></code>).</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">--baudrate</span></code>:
+Communication speed (default: <code class="code docutils literal notranslate"><span class="pre">2000000</span></code>).</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">--rtscts</span></code>:
+Enable hardware flow control (requires SB4/SB7 hardware modification).</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">--bt-attach</span></code>:
+Spawns <code class="code docutils literal notranslate"><span class="pre">btattach</span></code> on the BLE channel (requires root).</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">--ot-manager</span></code>:
+Spawns <code class="code docutils literal notranslate"><span class="pre">ot-daemon</span></code> or <code class="code docutils literal notranslate"><span class="pre">otbr-agent</span></code> on the OpenThread channel
+(requires root).</p></li>
+</ul>
+</section>
+<section id="interactive-mode">
+<h3>Interactive Mode</h3>
+<p>While the script is running, you can interact with it directly from the
+terminal:</p>
+<ul class="simple">
+<li><p><strong>Press ‘i’</strong>:
+Displays the current status of the PTYs and the PIDs of attached daemons.</p></li>
+<li><p><strong>Press ‘q’</strong>:
+Safely shuts down the multiplexer and cleans up virtual devices.</p></li>
+</ul>
+</section>
+<section id="virtual-device-mapping">
+<h3>Virtual Device Mapping</h3>
+<p>The script creates three PTYs. Look for the following lines in the terminal
+output to identify the virtual device paths:</p>
+<ul class="simple">
+<li><p><strong>BLE</strong>:
+Use this for BlueZ / HCI communication.</p></li>
+<li><p><strong>OT</strong>:
+Use this for OpenThread Spinel communication.</p></li>
+<li><p><strong>System</strong>:
+Use this for console or management frames.</p></li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you see “staircase” text in your terminal, the script includes a
+custom logger to handle the translation between Linux LF and Serial CR/LF
+while in raw/cbreak mode.</p>
+</div>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="uart_mux.html" title="UART Multiplexer"
+             >next</a></li>
+        <li class="right" >
+          <a href="README.html" title="OpenThread and BLE RCP"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Getting Started with Nucleo-WBA65RI on Ubuntu</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2026, STMicroelectronics.
+      Last updated on 2026-01-15 03:37:12.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    </div>
+  </body>
+</html>
