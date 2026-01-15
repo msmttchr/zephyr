@@ -15,15 +15,6 @@ Build the **RCP application** (recommended for normal use):
 
    west build -b nucleo_wba65ri app_rcp
 
-Build the **UART mux test side application** (for boards without radio
-or for UART multiplexer validation):
-
-.. code-block:: console
-
-   west build -b nucleo_l152re app_uart_mux_test
-
-For UART multiplexer details, see ``UART_MUX.md``.
-
 ---
 
 Overview
@@ -56,6 +47,9 @@ Repository Structure
    │   └── uart_mux.h
    ├── scripts/
    │   └── uart_mux_asyncio.py
+   ├── docs/
+   │   └── src/
+   │       └── index.rst
    ├── dts/
    │   └── bindings/
    │       └── uart/
@@ -68,8 +62,7 @@ Repository Structure
    │   ├── prj.conf
    │   ├── src/main.c
    │   └── boards/
-   ├── UART_MUX.md
-   ├── README.rst
+   ├── CMakeLists.txt
    └── sample.yaml
 
 The UART multiplexer implementation is shared between both applications
