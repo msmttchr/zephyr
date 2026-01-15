@@ -1,0 +1,19 @@
+identifier: custom_wba55cg
+name: Custom WBA55CG
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+supported:
+  - gpio
+  - i2c
+  - spi
+  - adc
+  - watchdog
+  - rng
+  - counter
+  - rtc
+ram: 128
+flash: 1024
+vendor: st

@@ -1,0 +1,6 @@
+board:
+  name: custom_wba55cg
+  full_name: Custom WBA55CG
+  vendor: st
+  socs:
+    - name: stm32wba55xx
