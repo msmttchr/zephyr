@@ -1,4 +1,6 @@
 name: Build RCP BLE OT and Docs
+permissions:
+  contents: write
 
 on:
   push:
