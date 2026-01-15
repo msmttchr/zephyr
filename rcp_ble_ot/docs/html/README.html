@@ -15,7 +15,7 @@
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/bizstyle.js"></script>
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Getting Started with Nucleo-WBA65RI on Ubuntu" href="nucleo_ubuntu.html" />
+    <link rel="next" title="Getting Started with Nucleo-WBA65RI and Nucleo-WBA55CG on Ubuntu" href="nucleo_ubuntu.html" />
     <link rel="prev" title="OpenThread and BLE RCP getting started" href="index.html" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
     <!--[if lt IE 9]>
@@ -26,7 +26,7 @@
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
-          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI and Nucleo-WBA55CG on Ubuntu"
              accesskey="N">next</a></li>
         <li class="right" >
           <a href="index.html" title="OpenThread and BLE RCP getting started"
@@ -51,12 +51,6 @@ multiplexer implementation.</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b nucleo_wba65ri app_rcp</span>
 </pre></div>
 </div>
-<p>Build the <strong>UART mux test side application</strong> (for boards without radio
-or for UART multiplexer validation):</p>
-<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">west build -b nucleo_l152re app_uart_mux_test</span>
-</pre></div>
-</div>
-<p>For UART multiplexer details, see <code class="docutils literal notranslate"><span class="pre">UART_MUX.md</span></code>.</p>
 <p>—</p>
 </section>
 <section id="overview">
@@ -83,6 +77,9 @@ Devicetree.</p>
 │   └── uart_mux.h
 ├── scripts/
 │   └── uart_mux_asyncio.py
+├── docs/
+│   └── src/
+│       └── index.rst
 ├── dts/
 │   └── bindings/
 │       └── uart/
@@ -95,8 +92,7 @@ Devicetree.</p>
 │   ├── prj.conf
 │   ├── src/main.c
 │   └── boards/
-├── UART_MUX.md
-├── README.rst
+├── CMakeLists.txt
 └── sample.yaml
 </pre></div>
 </div>
@@ -208,7 +204,7 @@ than providing full OpenThread/BLE RCP functionality.</p>
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
-          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI on Ubuntu"
+          <a href="nucleo_ubuntu.html" title="Getting Started with Nucleo-WBA65RI and Nucleo-WBA55CG on Ubuntu"
              >next</a></li>
         <li class="right" >
           <a href="index.html" title="OpenThread and BLE RCP getting started"
@@ -219,7 +215,7 @@ than providing full OpenThread/BLE RCP functionality.</p>
     </div>
     <div class="footer" role="contentinfo">
     &#169; Copyright 2026, STMicroelectronics.
-      Last updated on 2026-01-15 03:37:12.
+      Last updated on 2026-01-15 11:47:02.
       Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
     </div>
   </body>
