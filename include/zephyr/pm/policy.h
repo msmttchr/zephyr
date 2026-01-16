@@ -273,6 +273,19 @@ bool pm_policy_device_is_disabling_state(const struct device *dev,
  */
 int64_t pm_policy_next_event_ticks(void);
 
+#ifdef CONFIG_PM_CUSTOM_TICKS_HOOK
+/**
+ * @brief Get ticks to custom next event for PM policy.
+ *
+ * This optional hook allows providing an additional "next event"
+ * tick value derived from proprietary or hardware-specific sources
+ * that are not modeled via pm_policy_next_event_ticks().
+ *
+ * @return Ticks to next custom event or K_TICKS_FOREVER if none.
+ */
+int64_t pm_policy_next_custom_ticks(void);
+#endif /* CONFIG_PM_CUSTOM_TICKS_HOOK */
+
 #else
 static inline void pm_policy_state_lock_get(enum pm_state state, uint8_t substate_id)
 {
@@ -323,6 +336,13 @@ static inline int64_t pm_policy_next_event_ticks(void)
 {
 	return -1;
 }
+#ifdef CONFIG_PM_CUSTOM_TICKS_HOOK
+
+static inline int64_t int64_t pm_policy_next_custom_ticks(void)
+{
+	return -1;
+}
+#endif /* CONFIG_PM_CUSTOM_TICKS_HOOK */
 
 #endif /* CONFIG_PM */
 
