@@ -6,6 +6,12 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
+#include "uart_mux.h"
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
+#define DEBUG_STACK_SIZE 512
+#define DEBUG_PRIORITY K_LOWEST_THREAD_PRIO
 
 extern int hci_uart_main(void);
 /* Retrieve the device pointer for the console */
@@ -16,6 +22,32 @@ static const struct device *const rcp_dev = DEVICE_DT_GET(DT_CHOSEN(uart_mux));
 #define RCP_BR DT_PROP(DT_CHOSEN(uart_mux), current_speed)
 static bool console_has_flow_ctrl = DT_PROP_OR(DT_CHOSEN(zephyr_console), hw_flow_control, false);
 static bool rcp_has_flow_ctrl = DT_PROP_OR(DT_CHOSEN(uart_mux), hw_flow_control, false);
+
+void debug_thread(void *a, void *b, void *c)
+{
+    LOG_INF("Debug thread started");
+    while (1) {
+	struct uart_mux_rx_stats stats;
+
+	/* Sleep most of the time */
+	k_sleep(K_SECONDS(10));
+	uart_mux_get_rx_stats(&stats);
+	LOG_INF("UART Mux RX Stats:");
+	LOG_INF("  Frames OK:     %u", stats.frames_ok);
+	LOG_INF("  CRC Errors:    %u", stats.crc_errors);
+	LOG_INF("  Header Errors: %u", stats.header_errors);
+	LOG_INF("  Length Errors: %u", stats.length_errors);
+	LOG_INF("  No Channel:    %u", stats.no_channel);
+    }
+}
+
+K_THREAD_DEFINE(debug_tid,
+                DEBUG_STACK_SIZE,
+                debug_thread,
+                NULL, NULL, NULL,
+                DEBUG_PRIORITY,
+                0,
+                0);
 
 int main(void)
 {
