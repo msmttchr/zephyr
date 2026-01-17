@@ -28,9 +28,6 @@
 
 #define UART_MUX_HEADER_LEN      5
 #define UART_MUX_CRC_LEN         2
-#define UART_MUX_MAX_PAYLOAD_LEN  260  /* choose appropriately */
-#define UART_MUX_MAX_FRAME_LEN \
-	(1 + 1 + 2 + 1 + UART_MUX_MAX_PAYLOAD_LEN + 2)
 
 typedef void (*uart_mux_tx_done_cb_t)(const uint8_t *buf, size_t len, void *user_data);
 
