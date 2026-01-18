@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Design Level and Advanced Information &#8212; RCP BLE and Openthread 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="User Guide: NUCLEO to Ubuntu RCP Setup" href="user_guide.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="user_guide.html" title="User Guide: NUCLEO to Ubuntu RCP Setup"
+             accesskey="P">previous</a></li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Design Level and Advanced Information</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <section id="design-level-and-advanced-information">
+<h1>Design Level and Advanced Information</h1>
+<section id="building-from-source">
+<h2>Building from Source</h2>
+<p>While pre-compiled binaries are provided for standard setups, developers can customize the application or the UART multiplexer configuration by building from source using the Zephyr toolchain.</p>
+<section id="building-the-rcp-application">
+<h3>Building the RCP Application</h3>
+<p>To build the main Radio Co-Processor application for your specific board:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>For<span class="w"> </span>NUCLEO-WBA65RI
+<span class="go">west build -b nucleo_wba65ri app_rcp</span>
+
+<span class="gp"># </span>For<span class="w"> </span>NUCLEO-WBA55CG
+<span class="go">west build -b nucleowba55cg app_rcp</span>
+</pre></div>
+</div>
+<p>Board-specific Devicetree overlays located in <code class="docutils literal notranslate"><span class="pre">app_rcp/boards/</span></code> define the physical UART peripheral used and the virtual channel mapping.</p>
+</section>
+</section>
+<section id="uart-multiplexer-architecture">
+<h2>UART Multiplexer Architecture</h2>
+<p>The UART multiplexer allows multiple independent <strong>virtual UART devices</strong> to share a single <strong>physical asynchronous UART</strong>.</p>
+<section id="key-design-principles">
+<h3>Key Design Principles</h3>
+<ul class="simple">
+<li><p><strong>Application Level</strong>: Implemented entirely at the application level without modifying Zephyr core drivers.</p></li>
+<li><p><strong>Devicetree Driven</strong>: Configuration, routing, and prioritization are defined in Devicetree.</p></li>
+<li><p><strong>Deterministic</strong>: Uses fixed-size buffers and memory slabs with no heap allocation to ensure predictable RAM usage.</p></li>
+<li><p><strong>Priority-based</strong>: TX arbitration is handled based on assigned channel priority; only one frame is transmitted at a time.</p></li>
+</ul>
+</section>
+<section id="framing-protocol">
+<h3>Framing Protocol</h3>
+<p>Data is exchanged using a framed packet structure to allow the host to distinguish between BLE, OpenThread, and System data:</p>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p>FI(1)</p></td>
+<td><p>FF(1)</p></td>
+<td><p>LEN(2)</p></td>
+<td><p>PLC(1)</p></td>
+<td><p>PAYLOAD</p></td>
+<td><p>CRC16(2)</p></td>
+</tr>
+</tbody>
+</table>
+<ul class="simple">
+<li><p><strong>FI (0xC0) / FF (0x02)</strong>: Fixed framing start bytes.</p></li>
+<li><p><strong>LEN</strong>: 2-byte little-endian value representing the payload length.</p></li>
+<li><p><strong>PLC</strong>: 1-byte Protocol Link Context used for routing to the correct virtual UART.</p></li>
+<li><p><strong>CRC16</strong>: 2-byte CRC-16-CCITT (little-endian) for data integrity.</p></li>
+</ul>
+</section>
+</section>
+<section id="advanced-configuration">
+<h2>Advanced Configuration</h2>
+<section id="adding-a-virtual-uart">
+<h3>Adding a Virtual UART</h3>
+<p>The multiplexer behavior is fully configurable. To add a new channel, you must modify the Devicetree overlay for the multiplexer:</p>
+<ol class="arabic simple">
+<li><p>Define a new child node under the <code class="docutils literal notranslate"><span class="pre">st,uart-mux</span></code> compatible device.</p></li>
+<li><p><strong>Priority</strong>: Assign a unique integer (lower values have higher priority).</p></li>
+<li><p><strong>PLC TX</strong>: Set the fixed PLC value the MCU will send to the host.</p></li>
+<li><p><strong>PLC RX</strong>: Define a list of PLC values the MCU should route to this specific virtual device.</p></li>
+</ol>
+<p>Below is an example of an overlay file defining three virtual channels (BLE, OpenThread, and System) sharing a single physical UART:</p>
+<div class="highlight-dts notranslate"><div class="highlight"><pre><span></span><span class="nf">/</span><span class="cm"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nl">uart_mux_bt</span><span class="p">:</span><span class="w"> </span><span class="nf">uart-mux-bt</span><span class="cm"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">compatible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;st,uart-mux&quot;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">priority</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mi">0</span><span class="o">&gt;</span><span class="p">;</span><span class="w">   </span><span class="cm">/* BLE HCI – highest priority */</span>
+<span class="w">        </span><span class="n">plc_tx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mh">0x91</span><span class="o">&gt;</span><span class="p">;</span><span class="w">  </span><span class="cm">/* Protocol Link Context for transmission */</span>
+<span class="w">        </span><span class="n">plc_rx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">91</span><span class="p">];</span><span class="w">    </span><span class="cm">/* Accepted PLC values for routing */</span>
+<span class="w">        </span><span class="kr">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;okay&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="nl">uart_mux_ot</span><span class="p">:</span><span class="w"> </span><span class="nf">uart-mux-ot</span><span class="cm"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">compatible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;st,uart-mux&quot;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">priority</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">;</span><span class="w">   </span><span class="cm">/* OpenThread */</span>
+<span class="w">        </span><span class="n">plc_tx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mh">0x92</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">plc_rx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">92</span><span class="p">];</span>
+<span class="w">        </span><span class="kr">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;okay&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="nl">uart_mux_sys</span><span class="p">:</span><span class="w"> </span><span class="nf">uart-mux-sys</span><span class="cm"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">compatible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;st,uart-mux&quot;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">priority</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;</span><span class="p">;</span><span class="w">   </span><span class="cm">/* System / Logs – lowest priority */</span>
+<span class="w">        </span><span class="n">plc_tx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="mh">0x90</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="w">        </span><span class="n">plc_rx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">90</span><span class="p">];</span>
+<span class="w">        </span><span class="kr">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;okay&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="nf">chosen</span><span class="cm"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">zephyr</span><span class="p">,</span><span class="n">bt-c2h-uart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">uart_mux_bt</span><span class="p">;</span>
+<span class="w">        </span><span class="n">zephyr</span><span class="p">,</span><span class="n">ot-uart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">uart_mux_ot</span><span class="p">;</span>
+<span class="w">        </span><span class="n">uart-mux</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">usart_mux</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="kconfig-options">
+<h2>Kconfig Options</h2>
+<p>The multiplexer’s behavior and memory footprint are managed through the following Kconfig parameters:</p>
+<ul class="simple">
+<li><p><strong>CONFIG_UART_MUX</strong>: Master switch to enable the application-level UART multiplexer.</p></li>
+<li><p><strong>CONFIG_UART_MUX_PHY_RX_BUF_SIZE</strong>: Sets the RX buffer size for the physical UART. Default is <strong>64 bytes</strong> (range 32-256).</p></li>
+<li><p><strong>CONFIG_UART_MUX_RX_BUF_SIZE</strong>: Sets the payload buffer size for virtual UART devices. Default is <strong>256 bytes</strong> (range 64-4096).</p></li>
+<li><p><strong>CONFIG_UART_MUX_RX_TIMEOUT_MS</strong>: Specifies the timeout in milliseconds for the RX state machine to resynchronize after an error. Default is <strong>50 ms</strong>.</p></li>
+</ul>
+</section>
+<section id="validation-and-testing">
+<h2>Validation and Testing</h2>
+<p>The repository includes an auxiliary application <code class="docutils literal notranslate"><span class="pre">app_uart_mux_test/</span></code> for functional validation.</p>
+<ul class="simple">
+<li><p><strong>Purpose</strong>: Stress tests the TX arbitration and RX routing logic.</p></li>
+<li><p><strong>Hardware Requirements</strong>: Intended for development on boards without radio hardware (e.g., NUCLEO-L152RE).</p></li>
+<li><p><strong>Operation</strong>: Runs independent threads that generate synthetic traffic to verify the framing protocol and host-side script stability.</p></li>
+</ul>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="user_guide.html" title="User Guide: NUCLEO to Ubuntu RCP Setup"
+             >previous</a></li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Design Level and Advanced Information</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2026, STMicroelectronics.
+      Last updated on 2026-01-18 12:15:50.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    </div>
+  </body>
+</html>

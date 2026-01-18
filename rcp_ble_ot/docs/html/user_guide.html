@@ -1,0 +1,294 @@
+
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>User Guide: NUCLEO to Ubuntu RCP Setup &#8212; RCP BLE and Openthread 0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" />
+    <link rel="stylesheet" type="text/css" href="_static/bizstyle.css?v=5283bb3d" />
+    
+    <script src="_static/documentation_options.js?v=2709fde1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/bizstyle.js"></script>
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Design Level and Advanced Information" href="design_reference.html" />
+    <link rel="prev" title="OpenThread and BLE RCP Documentation" href="index.html" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <!--[if lt IE 9]>
+    <script src="_static/css3-mediaqueries.js"></script>
+    <![endif]-->
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="design_reference.html" title="Design Level and Advanced Information"
+             accesskey="N">next</a></li>
+        <li class="right" >
+          <a href="index.html" title="OpenThread and BLE RCP Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">User Guide: NUCLEO to Ubuntu RCP Setup</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <section id="user-guide-nucleo-to-ubuntu-rcp-setup">
+<h1>User Guide: NUCLEO to Ubuntu RCP Setup</h1>
+<section id="overview">
+<h2>Overview</h2>
+<p>This guide describes how to set up a system composed of a <strong>NUCLEO-WBA board</strong> connected to an <strong>Ubuntu/Linux PC</strong>. The system runs an OpenThread and BLE Radio Co-Processor (RCP) application, using a UART multiplexer to share a single connection for multiple protocol stacks.</p>
+<section id="system-architecture">
+<h3>System Architecture</h3>
+<a class="reference internal image-reference" href="_images/app_rcp_diagram.png"><img alt="RCP connection to Ubuntu PC" class="align-center" src="_images/app_rcp_diagram.png" style="width: 600px;" />
+</a>
+<p>The NUCLEO board communicates with the Ubuntu host via a physical UART. On the PC, a Python script bridges this physical port to virtual ports (PTYs) for BlueZ (BLE), OpenThread (Spinel), and System Logs.</p>
+</section>
+</section>
+<section id="hardware-setup">
+<h2>Hardware Setup</h2>
+<p>To enable <strong>RTS/CTS hardware flow control</strong>, specific solder bridges must be configured based on your board model. This is required for high-speed, reliable communication at 2 Mbps.</p>
+<section id="nucleo-wba65ri-usart2">
+<h3>NUCLEO-WBA65RI (USART2)</h3>
+<p>Configure the <strong>MB1801</strong> mezzanine board as follows:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Solder Bridge</p></th>
+<th class="head"><p>Position</p></th>
+<th class="head"><p>Function</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td colspan="2"><p><strong>SB4</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Connects USART2_RTS (PA15) to ST-LINK CTS</p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><strong>SB7</strong> | <strong>OFF</strong> (Open)</p></td>
+<td><p>Disconnects alternative PA15 routing</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="nucleo-wba55cg-lpuart1">
+<h3>NUCLEO-WBA55CG (LPUART1)</h3>
+<p>The following configurations are required across the mezzanine and MCU boards:</p>
+<p><strong>MB1801 Mezzanine Board (VCP2 &amp; Routing)</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Solder Bridge</p></th>
+<th class="head"><p>Position</p></th>
+<th class="head"><p>Function</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td colspan="2"><p><strong>SB7</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Connects LPUART1_RX (PA10) to ST-LINK TX</p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><strong>SB8</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Connects LPUART1_TX (PB5) to ST-LINK RX</p></td>
+</tr>
+<tr class="row-even"><td colspan="2"><p><strong>SB25</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Routes ST-LINK_RTS towards the SoC CTS path</p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><strong>SB23</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Routes ST-LINK_CTS towards the SoC RTS path</p></td>
+</tr>
+</tbody>
+</table>
+<p><strong>MB1803 MCU RF Board (Pin Selection)</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Solder Bridge</p></th>
+<th class="head"><p>Position</p></th>
+<th class="head"><p>Function</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td colspan="2"><p><strong>SB32</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Connects CTS signal to PB15</p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><strong>SB31</strong> | <strong>OFF</strong> (Open)</p></td>
+<td><p>Disconnects alternative PB15 path</p></td>
+</tr>
+<tr class="row-even"><td colspan="2"><p><strong>SB25</strong> | <strong>ON</strong> (Closed)</p></td>
+<td><p>Connects RTS signal to PB9</p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><strong>SB23</strong> | <strong>OFF</strong> (Open)</p></td>
+<td><p>Disconnects alternative PB9 path</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Enabling VCP2 replaces the ST-LINK mass‑storage interface. Use a fine-tip soldering iron and verify against manuals UM3448 (WBA65RI) or UM3301 (WBA55CG).</p>
+</div>
+</section>
+</section>
+<section id="software-setup">
+<h2>Software Setup</h2>
+<section id="ubuntu-configuration">
+<h3>Ubuntu Configuration</h3>
+<ol class="arabic">
+<li><p><strong>Permissions</strong>: Add your user to the dialout group to access serial ports:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>usermod<span class="w"> </span>-aG<span class="w"> </span>dialout<span class="w"> </span><span class="nv">$USER</span>
+</pre></div>
+</div>
+<p><em>(Note: You must log out and back in for changes to apply).</em></p>
+</li>
+<li><p><strong>Conflict Resolution</strong>: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>ModemManager
+</pre></div>
+</div>
+</li>
+<li><p><strong>ST-LINK Rules</strong>: Create a file at <code class="docutils literal notranslate"><span class="pre">/etc/udev/rules.d/49-stlinkv3.rules</span></code> to allow access to the ST-LINK/V3 bridge without root permissions:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374d&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374e&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}==&quot;374f&quot;, MODE=&quot;0666&quot;, GROUP=&quot;dialout&quot;
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="nucleo-configuration">
+<h3>NUCLEO configuration</h3>
+<p>If you do not wish to build the firmware from source using Zephyr/West, you can flash the provided pre-compiled binary directly:</p>
+<ol class="arabic simple">
+<li><p>Connect your NUCLEO board to your PC via USB.</p></li>
+<li><p>Open <strong>STM32CubeProgrammer</strong>.</p></li>
+<li><p>Select the provided <code class="docutils literal notranslate"><span class="pre">.bin</span></code> or <code class="docutils literal notranslate"><span class="pre">.elf</span></code> file for your specific board model.</p></li>
+<li><p>Click <strong>Connect</strong> and then <strong>Start Programming</strong>.</p></li>
+</ol>
+</section>
+</section>
+<section id="testing-the-system">
+<h2>Testing the system</h2>
+<section id="multiplexer-startup-and-status">
+<h3>Multiplexer Startup and Status</h3>
+<p>The host-side script must be running to bridge the physical NUCLEO connection to virtual system interfaces.</p>
+<ol class="arabic">
+<li><p><strong>Install Dependencies</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyserial-asyncio
+</pre></div>
+</div>
+</li>
+<li><p><strong>Launch Script</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace /dev/ttyACM1 with your board&#39;s secondary VCP port</span>
+sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--bt-attach<span class="w"> </span>--ot-manager<span class="w"> </span>ot-daemon
+</pre></div>
+</div>
+</li>
+<li><p><strong>Monitor Connection Status</strong>:
+While the script is running, it provides real-time logging. Press the <strong>‘i’</strong> key at any time to display the current connection status:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============================================================
+                UART MULTIPLEXER STATUS
+============================================================
+ Date:        2026-01-18 12:04:16.100161
+ Port:        /dev/ttyACM1
+ Baudrate:    2000000
+ Flow Ctrl:   Hardware (RTS/CTS)
+ Bluetooth:   Active on /dev/pts/3 (PID: 3329203)
+ HCI Intf:    hci0
+ OT daemon:   ot-daemon active on /dev/pts/4 (PID: 3329213)
+------------------------------------------------------------
+ CHANNEL      | PTY DEVICE
+------------------------------------------------------------
+ BLE          | /dev/pts/3
+ OT           | /dev/pts/4
+ System       | /dev/pts/5
+------------------------------------------------------------
+ [ Press &#39;i&#39; to show this status  |  &#39;q&#39; to Exit  |
+   Ctrl+C to Exit ]
+============================================================
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="bluetooth-ble-validation">
+<h3>Bluetooth (BLE) Validation</h3>
+<p>With the multiplexer running and the <code class="docutils literal notranslate"><span class="pre">--bt-attach</span></code> flag used, the virtual BLE channel is automatically linked to the BlueZ stack.</p>
+<ol class="arabic">
+<li><p><strong>Identify the Interface</strong>:
+If your PC has multiple Bluetooth controllers (e.g., an internal card and the NUCLEO), verify which interface belongs to the NUCLEO by pressing <strong>‘i’</strong> in the multiplexer terminal. Look for the <strong>HCI Intf</strong> line (e.g., <code class="docutils literal notranslate"><span class="pre">hci0</span></code> or <code class="docutils literal notranslate"><span class="pre">hci1</span></code>).</p></li>
+<li><p><strong>Perform a Low Energy Scan</strong>:
+Use the specific interface identified above to scan for advertising packets:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace hci0 with the interface listed in the status table</span>
+sudo<span class="w"> </span>hcitool<span class="w"> </span>-i<span class="w"> </span>hci0<span class="w"> </span>lescan<span class="w"> </span>--duplicates
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="openthread-validation">
+<h3>OpenThread Validation</h3>
+<p>If the multiplexer was started with the <code class="docutils literal notranslate"><span class="pre">--ot-manager</span> <span class="pre">ot-daemon</span></code> flag, the <code class="docutils literal notranslate"><span class="pre">ot-daemon</span></code> will connect to the virtual PTY automatically.</p>
+<ol class="arabic">
+<li><p><strong>Check Node State</strong>:
+Verify the RCP is communicating with the daemon:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>ot-ctl<span class="w"> </span>state
+</pre></div>
+</div>
+</li>
+<li><p><strong>Network Discovery</strong>:
+Perform an active scan to verify the 802.15.4 radio:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>ot-ctl<span class="w"> </span>scan
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting</h2>
+<section id="debug-console">
+<h3>Debug Console</h3>
+<p>The NUCLEO firmware provides a debug console for system events.
+Connect a serial terminal (like Minicom or PuTTY) to the <strong>NUCLEO first Virtual COM port</strong> (e.g., <code class="docutils literal notranslate"><span class="pre">/dev/ttyACM0</span></code>) using a baudrate of <strong>115200</strong>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Connect to the first VCP (ACM0)</span>
+sudo<span class="w"> </span>minicom<span class="w"> </span>-D<span class="w"> </span>/dev/ttyACM0<span class="w"> </span>-b<span class="w"> </span><span class="m">115200</span>
+</pre></div>
+</div>
+<p>After pressing the <strong>Reset</strong> button on the NUCLEO board, you should see initialization logs and system status messages.</p>
+</section>
+<section id="multiplexer-verbose-logging">
+<h3>Multiplexer Verbose Logging</h3>
+<p>If the protocol stacks are not connecting or data is not flowing, restart the multiplexer script with extra debugging flags to inspect the raw packets exchanged:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--log-level<span class="w"> </span>DEBUG<span class="w"> </span>--log-rx<span class="w"> </span>--log-tx
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="design_reference.html" title="Design Level and Advanced Information"
+             >next</a></li>
+        <li class="right" >
+          <a href="index.html" title="OpenThread and BLE RCP Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">RCP BLE and Openthread 0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">User Guide: NUCLEO to Ubuntu RCP Setup</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2026, STMicroelectronics.
+      Last updated on 2026-01-18 12:15:50.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    </div>
+  </body>
+</html>
