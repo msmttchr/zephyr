@@ -8,9 +8,10 @@
 #include <zephyr/drivers/uart.h>
 #include "uart_mux.h"
 #include <zephyr/logging/log.h>
+#include <zephyr/debug/thread_analyzer.h>
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
-#define DEBUG_STACK_SIZE 512
+#define DEBUG_STACK_SIZE 1024
 #define DEBUG_PRIORITY K_LOWEST_THREAD_PRIO
 
 extern int hci_uart_main(void);
@@ -38,6 +39,7 @@ void debug_thread(void *a, void *b, void *c)
 	LOG_INF("  Header Errors: %u", stats.header_errors);
 	LOG_INF("  Length Errors: %u", stats.length_errors);
 	LOG_INF("  No Channel:    %u", stats.no_channel);
+	thread_analyzer_print(0);
     }
 }
 
