@@ -16,10 +16,6 @@ config UART_MUX_RX_BUF_SIZE
 	range 64 4096
 	default 256
 
-config UART_MUX_MAX_CHANNELS
-	int "Maximum number of virtual UART channels"
-	default 4
-
 config UART_MUX_RX_TIMEOUT_MS
 	int "RX resync timeout (ms)"
 	default 50
