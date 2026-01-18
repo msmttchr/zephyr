@@ -1,16 +1,26 @@
-.. RCP BLE and Openthread documentation master file, created by
-   sphinx-quickstart on Tue Jan 13 13:59:24 2026.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. RCP BLE and Openthread documentation master file.
 
-OpenThread and BLE RCP getting started
-=======================================
+OpenThread and BLE RCP Documentation
+====================================
 
+Welcome to the documentation for the OpenThread and BLE Radio Co-Processor (RCP) project. 
+This project enables high-performance wireless networking using a NUCLEO-WBA board 
+interfaced with an Ubuntu Linux host.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: User Guide
+   
+   user_guide
 
-   README
-   nucleo_ubuntu
-   uart_mux
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer & Design Reference
+
+   design_reference
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`search`
