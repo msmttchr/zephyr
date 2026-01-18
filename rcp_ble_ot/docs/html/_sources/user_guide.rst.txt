@@ -27,9 +27,9 @@ Configure the **MB1801** mezzanine board as follows:
 +-----------------+------------------+---------------------------------------------+
 | Solder Bridge   | Position         | Function                                    |
 +=================+==================+=============================================+
-| **SB4** | **ON** (Closed)          | Connects USART2_RTS (PA15) to ST-LINK CTS   |
+| **SB4**         | **ON** (Closed)  | Connects USART2_RTS (PA15) to ST-LINK CTS   |
 +-----------------+------------------+---------------------------------------------+
-| **SB7** | **OFF** (Open)           | Disconnects alternative PA15 routing        |
+| **SB7**         | **OFF** (Open)   | Disconnects alternative PA15 routing        |
 +-----------------+------------------+---------------------------------------------+
 
 NUCLEO-WBA55CG (LPUART1)
@@ -41,13 +41,13 @@ The following configurations are required across the mezzanine and MCU boards:
 +-----------------+------------------+---------------------------------------------+
 | Solder Bridge   | Position         | Function                                    |
 +=================+==================+=============================================+
-| **SB7** | **ON** (Closed)          | Connects LPUART1_RX (PA10) to ST-LINK TX    |
+| **SB7**         | **ON** (Closed)  | Connects LPUART1_RX (PA10) to ST-LINK TX    |
 +-----------------+------------------+---------------------------------------------+
-| **SB8** | **ON** (Closed)          | Connects LPUART1_TX (PB5) to ST-LINK RX     |
+| **SB8**         | **ON** (Closed)  | Connects LPUART1_TX (PB5) to ST-LINK RX     |
 +-----------------+------------------+---------------------------------------------+
-| **SB25** | **ON** (Closed)         | Routes ST-LINK_RTS towards the SoC CTS path |
+| **SB25**        | **ON** (Closed)  | Routes ST-LINK_RTS towards the SoC CTS path |
 +-----------------+------------------+---------------------------------------------+
-| **SB23** | **ON** (Closed)         | Routes ST-LINK_CTS towards the SoC RTS path |
+| **SB23**        | **ON** (Closed)  | Routes ST-LINK_CTS towards the SoC RTS path |
 +-----------------+------------------+---------------------------------------------+
 
 **MB1803 MCU RF Board (Pin Selection)**
@@ -55,13 +55,13 @@ The following configurations are required across the mezzanine and MCU boards:
 +-----------------+------------------+---------------------------------------------+
 | Solder Bridge   | Position         | Function                                    |
 +=================+==================+=============================================+
-| **SB32** | **ON** (Closed)         | Connects CTS signal to PB15                 |
+| **SB32**        | **ON** (Closed)  | Connects CTS signal to PB15                 |
 +-----------------+------------------+---------------------------------------------+
-| **SB31** | **OFF** (Open)          | Disconnects alternative PB15 path           |
+| **SB31**        | **OFF** (Open)   | Disconnects alternative PB15 path           |
 +-----------------+------------------+---------------------------------------------+
-| **SB25** | **ON** (Closed)         | Connects RTS signal to PB9                  |
+| **SB25**        | **ON** (Closed)  | Connects RTS signal to PB9                  |
 +-----------------+------------------+---------------------------------------------+
-| **SB23** | **OFF** (Open)          | Disconnects alternative PB9 path            |
+| **SB23**        | **OFF** (Open)   | Disconnects alternative PB9 path            |
 +-----------------+------------------+---------------------------------------------+
 
 .. warning::
