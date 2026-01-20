@@ -421,6 +421,7 @@ static void mux_try_tx(void)
 		/* Roll back cleanly */
 		mux.tx_owner = NULL;
 		mux.tx_ctx = NULL;
+		mux.tx_stage = UART_MUX_TX_IDLE;
 
 		/* Put TX back so it is not lost */
 		k_fifo_put(&ch->tx_fifo, tx);
