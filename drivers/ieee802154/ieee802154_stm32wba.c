@@ -863,7 +863,11 @@ static int stm32wba_802154_configure(const struct device *dev,
 		stm32wba_802154_data.rx_on_when_idle = config->rx_on_when_idle;
 		stm32wba_802154_ral_set_continuous_reception(config->rx_on_when_idle);
 		break;
-
+	case IEEE802154_CONFIG_MAC_KEYS:
+	case IEEE802154_CONFIG_FRAME_COUNTER:
+	case IEEE802154_CONFIG_FRAME_COUNTER_IF_LARGER:
+		ret = -ENOTSUP;
+		break;
 	default:
 #if defined(CONFIG_NET_L2_CUSTOM_IEEE802154)
 		ret = stm32wba_802154_configure_extended(
@@ -975,13 +979,29 @@ static void stm32wba_802154_cca_done(uint8_t error)
 	k_sem_give(&stm32wba_802154_data.cca_wait);
 }
 
-static void stm32wba_802154_energy_scan_done(int8_t rssi_result)
+static int16_t rssi_from_ed(int8_t value_input)
+{
+    int16_t value = value_input;
+    if(value == -1) {
+        value = 127; // Max dBm
+    }
+    else if (value == 0){
+        value = -128; // Min dBm
+    }
+    else{
+        value = (((value*5) >> 5) - 75);
+    }
+    return value;
+}
+
+
+static void stm32wba_802154_energy_scan_done(int8_t ed_result)
 {
 	if (stm32wba_802154_data.energy_scan_done_cb != NULL) {
 		energy_scan_done_cb_t callback = stm32wba_802154_data.energy_scan_done_cb;
 
 		stm32wba_802154_data.energy_scan_done_cb = NULL;
-		callback(stm32wba_802154_get_device(), rssi_result);
+		callback(stm32wba_802154_get_device(), rssi_from_ed(ed_result));
 	}
 }
 
