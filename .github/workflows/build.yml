@@ -83,6 +83,7 @@ jobs:
           rm -rf zephyr/rcp_ble_ot/docs/html/*
           sphinx-build -b html zephyr/rcp_ble_ot/docs/src zephyr/rcp_ble_ot/docs/html
           cp -r zephyr/rcp_ble_ot/docs/html docs
+          cp -r zephyr/rcp_ble_ot/scripts scripts
 
       - name: Commit HTML back to Repo
         if: matrix.board == 'nucleo_wba65ri'
@@ -106,3 +107,4 @@ jobs:
           path: |
             ${{ matrix.bin_name }}_${{ matrix.board }}.bin
             docs
+            scripts
