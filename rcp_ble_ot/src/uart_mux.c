@@ -393,23 +393,26 @@ static int mux_frame_tx(struct uart_mux_tx *tx)
 	return ret;
 }
 
+struct k_spinlock tx_lock;
+
 static void mux_try_tx(void)
 {
 	int ret;
 
+	k_spinlock_key_t key = k_spin_lock(&tx_lock);
 	if (mux.tx_owner) {
-		return;
+		goto out;
 	}
 
 	struct uart_mux_channel *ch = pick_next_channel();
 	if (!ch) {
-		return;
+		goto out;
 	}
 
 	struct uart_mux_tx *tx =
 		k_fifo_get(&ch->tx_fifo, K_NO_WAIT);
 	if (!tx) {
-		return;
+		goto out;
 	}
 
 	/* Claim ownership */
@@ -426,6 +429,8 @@ static void mux_try_tx(void)
 		/* Put TX back so it is not lost */
 		k_fifo_put(&ch->tx_fifo, tx);
 	}
+out:
+	k_spin_unlock(&tx_lock, key);
 }
 
 /* ============================= */
@@ -483,7 +488,9 @@ static void phy_uart_cb(const struct device *dev,
 		case UART_MUX_TX_CRC:
 
 			if (mux.tx_owner && mux.tx_owner->tx_done_cb) {
-				mux.tx_owner->tx_done_cb(mux.tx_ctx->buf, mux.tx_ctx->len, mux.tx_owner->tx_done_user_data);
+				mux.tx_owner->tx_done_cb(mux.tx_ctx->buf,
+							 mux.tx_ctx->len,
+							 mux.tx_owner->tx_done_user_data);
 			}
 
 			/* Final stage: free TX context and release ownership */
