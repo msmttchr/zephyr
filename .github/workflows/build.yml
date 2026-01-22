@@ -79,9 +79,12 @@ jobs:
           pip install sphinx sphinx_rtd_theme myst-parser
           # Debug: List files to see exactly where we are
           echo "Current directory: $(pwd)"
+          ls .
+          echo "ls directory: $(pwd)/zephyr"
           ls zephyr
           rm -rf zephyr/rcp_ble_ot/docs/html/*
           sphinx-build -b html zephyr/rcp_ble_ot/docs/src zephyr/rcp_ble_ot/docs/html
+          rm -rf zephyr/rcp_ble_ot/docs/.doctrees zephyr/rcp_ble_ot/docs/_sources zephyr/rcp_ble_ot/docs/.buildinfo
           cp -r zephyr/rcp_ble_ot/docs/html docs
           cp -r zephyr/rcp_ble_ot/scripts scripts
 
