@@ -34,6 +34,7 @@ jobs:
           rm -rf rcp_ble_ot/docs/html/*
           # Build from docs/src to docs/html
           sphinx-build -b html rcp_ble_ot/docs/src rcp_ble_ot/docs/html
+          rm -rf rcp_ble_ot/docs/html/.doctrees rcp_ble_ot/docs/html/_sources rcp_ble_ot/docs/html/.buildinfo
 
       - name: Commit and Push
         run: |
