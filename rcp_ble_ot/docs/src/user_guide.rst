@@ -108,7 +108,16 @@ Testing the system
 
 Multiplexer Startup and Status
 ==============================
-The host-side script must be running to bridge the physical NUCLEO connection to virtual system interfaces.
+The :file:`uart_mux_asyncio.py` script bridges a single physical UART port to virtual system interfaces
+to multiple virtual PTYs. This allows you to run:
+
+* A BLE stack (e.g., BlueZ via HCI)
+* An OpenThread stack (via Spinel)
+* A system console or management interface
+
+all over the same physical UART.
+
+The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
 
 1. **Install Dependencies**:
    
@@ -122,6 +131,10 @@ The host-side script must be running to bridge the physical NUCLEO connection to
 
       # Replace /dev/ttyACM1 with your board's secondary VCP port
       sudo python3 uart_mux_asyncio.py --port /dev/ttyACM1 --baudrate 2000000 --bt-attach --ot-manager ot-daemon
+
+.. note::
+   The script requires root access to spawn the bluetooth and openthread processes. It also requires `btattach` and/or `ot-daemon` executables in the path when
+   the options `--bt-attach` and/or `--ot-manager ot-daemon` are specified.
 
 3. **Monitor Connection Status**:
    While the script is running, it provides real-time logging. Press the **'i'** key at any time to display the current connection status:

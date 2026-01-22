@@ -84,7 +84,7 @@ jobs:
           ls zephyr
           rm -rf zephyr/rcp_ble_ot/docs/html/*
           sphinx-build -b html zephyr/rcp_ble_ot/docs/src zephyr/rcp_ble_ot/docs/html
-          rm -rf zephyr/rcp_ble_ot/docs/.doctrees zephyr/rcp_ble_ot/docs/_sources zephyr/rcp_ble_ot/docs/.buildinfo
+          rm -rf zephyr/rcp_ble_ot/docs/html/.doctrees zephyr/rcp_ble_ot/docs/html/_sources zephyr/rcp_ble_ot/docs/html/.buildinfo
           cp -r zephyr/rcp_ble_ot/docs/html docs
           cp -r zephyr/rcp_ble_ot/scripts scripts
 
