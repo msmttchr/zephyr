@@ -180,7 +180,15 @@ SUBSYSTEMS==&quot;usb&quot;, ATTRS{idVendor}==&quot;0483&quot;, ATTRS{idProduct}
 <h2>Testing the system</h2>
 <section id="multiplexer-startup-and-status">
 <h3>Multiplexer Startup and Status</h3>
-<p>The host-side script must be running to bridge the physical NUCLEO connection to virtual system interfaces.</p>
+<p>The <code class="file docutils literal notranslate"><span class="pre">uart_mux_asyncio.py</span></code> script bridges a single physical UART port to virtual system interfaces
+to multiple virtual PTYs. This allows you to run:</p>
+<ul class="simple">
+<li><p>A BLE stack (e.g., BlueZ via HCI)</p></li>
+<li><p>An OpenThread stack (via Spinel)</p></li>
+<li><p>A system console or management interface</p></li>
+</ul>
+<p>all over the same physical UART.</p>
+<p>The usage is identical for <strong>NUCLEO-WBA65RI</strong> and <strong>NUCLEO-WBA55CG</strong>.</p>
 <ol class="arabic">
 <li><p><strong>Install Dependencies</strong>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyserial-asyncio
@@ -193,6 +201,13 @@ sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<s
 </pre></div>
 </div>
 </li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The script requires root access to spawn the bluetooth and openthread processes. It also requires <cite>btattach</cite> and/or <cite>ot-daemon</cite> executables in the path when
+the options <cite>–bt-attach</cite> and/or <cite>–ot-manager ot-daemon</cite> are specified.</p>
+</div>
+<ol class="arabic" start="3">
 <li><p><strong>Monitor Connection Status</strong>:
 While the script is running, it provides real-time logging. Press the <strong>‘i’</strong> key at any time to display the current connection status:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============================================================
@@ -297,7 +312,7 @@ sudo<span class="w"> </span>minicom<span class="w"> </span>-D<span class="w"> </
     </div>
     <div class="footer" role="contentinfo">
     &#169; Copyright 2026, STMicroelectronics.
-      Last updated on 2026-01-22 21:06:19.
+      Last updated on 2026-01-22 21:55:13.
       Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
     </div>
   </body>
