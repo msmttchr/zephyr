@@ -1,12 +1,12 @@
 name: Sync HTML Docs
 
-#on:
+on:
 #  push:
 #    branches:
 #      - rcp_ble_ot
 #   paths:
 #      - 'rcp_ble_ot/docs/src/**'
-#  workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   docs:
