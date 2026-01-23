@@ -7,8 +7,8 @@
 usart_console: &usart2 {
 	clocks = <&rcc STM32_CLOCK(APB1, 17)>,
 		 <&rcc STM32_SRC_HSI16 USART2_SEL(2)>;
-	pinctrl-0 = <&usart2_tx_pa14 &usart2_rx_pa11>;
-	pinctrl-1 = <&analog_pa14 &analog_pa11>;
+	pinctrl-0 = <&usart2_tx_pb0 &usart2_rx_pb8>;
+	pinctrl-1 = <&analog_pb0 &analog_pb8>;
 	pinctrl-names = "default", "sleep";
 	current-speed = <115200>;
 	status = "okay";
