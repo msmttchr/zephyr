@@ -64,8 +64,11 @@ jobs:
               west update --narrow -o=--depth=1 && \
               west blobs fetch hal_stm32 && \
               west build -b ${{ matrix.board }} ${{ matrix.app_path }} -p always && \
-              cp build/zephyr/zephyr.bin ../${{ matrix.bin_name }}_${{ matrix.board }}.bin
-            "
+              cp build/zephyr/zephyr.bin ../${{ matrix.bin_name }}_${{ matrix.board }}.bin && \
+              cp build/zephyr/zephyr.elf ../${{ matrix.bin_name }}_${{ matrix.board }}.elf && \
+              cp build/zephyr/zephyr.map ../${{ matrix.bin_name }}_${{ matrix.board }}.map && \
+              cp build/zephyr/zephyr.dts ../${{ matrix.bin_name }}_${{ matrix.board }}.dts
+           "
 
       - name: Set up Python
         if: matrix.board == 'nucleo_wba65ri'
@@ -109,5 +112,8 @@ jobs:
           name: rcp-bundle-${{ matrix.board }}-${{ steps.vars.outputs.sha_short }}
           path: |
             ${{ matrix.bin_name }}_${{ matrix.board }}.bin
+            ${{ matrix.bin_name }}_${{ matrix.board }}.elf
+            ${{ matrix.bin_name }}_${{ matrix.board }}.map
+            ${{ matrix.bin_name }}_${{ matrix.board }}.dts
             docs
             scripts
