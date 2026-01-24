@@ -108,8 +108,8 @@ Testing the system
 
 Multiplexer Startup and Status
 ==============================
-The :file:`uart_mux_asyncio.py` script bridges a single physical UART port to virtual system interfaces
-to multiple virtual PTYs. This allows you to run:
+The :file:`uart_mux_asyncio.py` script bridges a single physical UART port to multiple virtual PTYs.
+This allows you to run:
 
 * A BLE stack (e.g., BlueZ via HCI)
 * An OpenThread stack (via Spinel)
