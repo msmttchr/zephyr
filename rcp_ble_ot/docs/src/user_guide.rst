@@ -72,7 +72,9 @@ Software Setup
 
 Ubuntu Configuration
 ====================
-1. **Permissions**: Add your user to the dialout group to access serial ports:
+1. **Python Version**: Ensure you have **Python 3.9 or later** installed. You can check your version by running `python3 --version`.
+
+2. **Permissions**: Add your user to the dialout group to access serial ports:
    
    .. code-block:: bash
 
@@ -80,13 +82,13 @@ Ubuntu Configuration
 
    *(Note: You must log out and back in for changes to apply).*
 
-2. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
+3. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
    
    .. code-block:: bash
 
       sudo systemctl disable --now ModemManager
 
-3. **ST-LINK Rules**: Create a file at ``/etc/udev/rules.d/49-stlinkv3.rules`` to allow access to the ST-LINK/V3 bridge without root permissions:
+4. **ST-LINK Rules**: Create a file at ``/etc/udev/rules.d/49-stlinkv3.rules`` to allow access to the ST-LINK/V3 bridge without root permissions:
 
    .. code-block:: text
 
@@ -120,6 +122,7 @@ all over the same physical UART.
 The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
 
 1. **Install Dependencies**:
+(Requires Python 3.9 or later)
    
    .. code-block:: bash
 
