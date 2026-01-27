@@ -22,7 +22,7 @@ To enable **RTS/CTS hardware flow control**, specific solder bridges must be con
 
 NUCLEO-WBA65RI (USART2)
 =======================
-Configure the **MB1801** mezzanine board as follows:
+Configure the MCU RF board (**MB2130**) as follows:
 
 +-----------------+------------------+---------------------------------------------+
 | Solder Bridge   | Position         | Function                                    |
