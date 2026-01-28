@@ -6,7 +6,7 @@
 
 usart_console: &usart2 {
 	clocks = <&rcc STM32_CLOCK(APB1, 17)>,
-		 <&rcc STM32_SRC_HSI16 USART2_SEL(2)>;
+		 <&rcc STM32_SRC_SYSCLK USART2_SEL(1)>;
 	pinctrl-0 = <&usart2_tx_pb0 &usart2_rx_pb8>;
 	pinctrl-1 = <&analog_pb0 &analog_pb8>;
 	pinctrl-names = "default", "sleep";
@@ -16,7 +16,7 @@ usart_console: &usart2 {
 
 usart_mux: &usart1 {
 	clocks = <&rcc STM32_CLOCK(APB2, 14)>,
-		 <&rcc STM32_SRC_HSI16 USART1_SEL(2)>;
+		 <&rcc STM32_SRC_SYSCLK USART1_SEL(1)>;
 	dmas = <&gpdma1 0 12 STM32_DMA_PERIPH_TX>,
 	       <&gpdma1 1 11 (STM32_DMA_PERIPH_RX | STM32_DMA_MODE_CYCLIC)>;
 	dma-names = "tx", "rx";
