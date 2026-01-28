@@ -27,6 +27,13 @@
 
 #include <zephyr/logging/log.h>
 
+#if defined(CONFIG_PM) && (defined(CONFIG_BT) || defined(CONFIG_IEEE802154))
+#include <zephyr/pm/policy.h>
+#include "os_wrapper.h"
+#include "ll_sys.h"
+#define STM32WBA_RADIO_PM_HOOK
+#endif
+
 LOG_MODULE_DECLARE(soc, CONFIG_SOC_LOG_LEVEL);
 
 
@@ -237,6 +244,24 @@ void pm_state_exit_post_ops(enum pm_state state, uint8_t substate_id)
 	 */
 	irq_unlock(0);
 }
+
+#ifdef STM32WBA_RADIO_PM_HOOK
+int64_t pm_policy_next_custom_ticks(void)
+{
+	int32_t return_value = 0;
+
+	if (LL_PWR_GetRadioMode() != LL_PWR_RADIO_ACTIVE_MODE) {
+		/* No radio activity in progress */
+		uint64_t next_radio_evt_us = os_timer_get_earliest_time();
+		if (next_radio_evt_us == LL_DP_SLP_NO_WAKEUP) {
+		  return_value = K_TICKS_FOREVER;
+		} else {
+		  return_value = k_us_to_ticks_floor32(next_radio_evt_us);
+		}
+	}
+	return return_value;
+}
+#endif /* STM32WBA_RADIO_PM_HOOK */
 
 /* Initialize STM32 Power */
 void stm32_power_init(void)
