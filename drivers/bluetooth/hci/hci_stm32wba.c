@@ -486,11 +486,13 @@ static int bt_hci_stm32wba_open(const struct device *dev, bt_hci_recv_t recv)
 
 static int bt_hci_stm32wba_close(const struct device *dev)
 {
-	struct aci_reset *param;
-	struct net_buf *buf;
-	int err;
+	int err = 0;
 
 	ARG_UNUSED(dev);
+
+#if defined (CONFIG_BT_HCI_HOST)
+	struct aci_reset *param;
+	struct net_buf *buf;
 
 	buf = bt_hci_cmd_alloc(K_FOREVER);
 	if (!buf) {
@@ -505,6 +507,7 @@ static int bt_hci_stm32wba_close(const struct device *dev)
 	if (err) {
 		return err;
 	}
+#endif /* CONFIG_BT_HCI_HOST */
 	bt_hci_state = BT_HCI_STATE_CLOSED;
 
 #if !defined(CONFIG_IEEE802154_STM32WBA)
