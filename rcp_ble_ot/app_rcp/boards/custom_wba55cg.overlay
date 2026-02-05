@@ -47,5 +47,9 @@ usart_mux: &usart1 {
 	clock-frequency = < DT_FREQ_M(64) >;
 };
 
+&ieee802154 {
+	status = "okay";
+};
+
 #include "nucleo_wbaxx.dtsi"
 
