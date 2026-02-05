@@ -30,6 +30,57 @@ usart_mux: &usart1 {
 	status = "okay";
 };
 
+&pinctrl {
+			/omit-if-no-ref/ pta_active_pb3: pta_active_pb3 {
+				pinmux = <STM32_PINMUX('B', 3, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+			/omit-if-no-ref/ pta_active_pb4: pta_active_pb4 {
+				pinmux = <STM32_PINMUX('B', 4, AF12)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+
+			/omit-if-no-ref/ pta_grant_pb15: pta_grant_pb15 {
+				pinmux = <STM32_PINMUX('B', 15, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+			/omit-if-no-ref/ pta_grant_h3: pta_grant_ph3 {
+				pinmux = <STM32_PINMUX('H', 3, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+
+			/omit-if-no-ref/ pta_status_pa12: pta_status_pa12 {
+				pinmux = <STM32_PINMUX('A', 12, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+			/omit-if-no-ref/ pta_status_pa14: pta_status_pa14 {
+				pinmux = <STM32_PINMUX('A', 14, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+			/omit-if-no-ref/ pta_status_pa15: pta_status_pa15 {
+				pinmux = <STM32_PINMUX('A', 15, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+
+			/omit-if-no-ref/ pta_priority_pa13: pta_priority_pa13 {
+				pinmux = <STM32_PINMUX('A', 13, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+			/omit-if-no-ref/ pta_priority_pb4: pta_priority_pb4 {
+				pinmux = <STM32_PINMUX('B', 4, AF10)>;
+				bias-pull-down;
+				slew-rate = "very-high-speed";
+			};
+};
+
 / {
 	/* Separate node for the extra GPIOs for power management */
 	usart_mux_pm: usart_mux_pm {
@@ -37,7 +88,16 @@ usart_mux: &usart1 {
 		wakeup-from-host-gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;   /* Wakeup from host */
 		wakeup-to-host-gpios = <&gpioa 1 GPIO_ACTIVE_LOW>;    /* Wakeup to host */
 	};
+    pta: pta-controller {
+        compatible = "st,pta-gpio";
+        status = "okay";
+        pinctrl-0 = <&pta_active_pb3 &pta_grant_pb15 &pta_status_pa15>;
+        pinctrl-1 = <&analog_pb3 &analog_pb15 &analog_pa15>;
+		pinctrl-names = "default",
+						"sleep";
+    };
 };
+
 
 &gpdma1 {
 	status = "okay";
