@@ -86,8 +86,26 @@ def build_frame(ch: int, payload: bytes, plc=None) -> bytes:
     crc = crc16_ccitt(hdr + payload)
     return hdr + payload + struct.pack("<H", crc)
 
-def print_status(args, bt_status=None, hci_dev="Not provided", ot_status=None):
+def get_status (proc):
+    if proc is None:
+        return None
+
+    if proc.returncode is not None:
+        pid_status = "dead"
+    else:
+        from utils import get_process_info
+        pid_status = get_process_info(proc.pid)['status']
+
+    return f"{proc.command} {pid_status} on {proc.slave_path} (PID: {proc.pid})"
+
+def print_status(args, bt_proc=None, hci_dev=None, ot_proc=None):
     """Enhanced status message for the MUX configuration."""
+    bt_status = get_status(bt_proc)
+    ot_status = get_status(ot_proc)
+    if hci_dev:
+        from utils import get_hci_status
+        status = get_hci_status(hci_dev)
+        hci_dev_status = f"{status.get('powered')} ({status.get('address')})"
     msg = [
         f"============================================================",
         f"                 UART MULTIPLEXER STATUS",
@@ -97,7 +115,7 @@ def print_status(args, bt_status=None, hci_dev="Not provided", ot_status=None):
         f" Baudrate:    {args.baudrate}",
         f" Flow Ctrl:   {'Hardware (RTS/CTS)' if args.rtscts else 'None'}",
         f" Bluetooth:   {bt_status}" if bt_status else None,
-        f" HCI Intf:    {hci_dev}" if bt_status else None,
+        f" HCI Intf:    {hci_dev}:{hci_dev_status}" if hci_dev else None,
         f" OT daemon:   {ot_status}" if ot_status else None,
         f"------------------------------------------------------------",
         f" {'CHANNEL':<12} | {'PTY DEVICE'}",
@@ -215,7 +233,6 @@ async def main():
         level=getattr(logging, args.log_level),
         format="%(levelname)s: %(message)s"
     )
-
     log_rx = True
     log_tx = True
 
@@ -275,7 +292,6 @@ async def main():
         except asyncio.CancelledError:
             # Optional: cleanup UART, flush buffers, log, etc.
             raw_print("UART RX cancelled")
-            #raise
 
     def pty_reader(fd, ch):
         try:
@@ -298,7 +314,7 @@ async def main():
         if not char:
             return
         if char.lower() == 'i':
-            print_status(args, bt_status, hci_dev, ot_status)
+            print_status(args, bt_proc, hci_dev, ot_proc)
         elif char.lower() == 'q':
             raw_print("\r\nExiting on 'q'...")
             stop_event.set()
@@ -306,52 +322,12 @@ async def main():
     # Identify BLE and OT PTY for Bluetooth/OT attachment
     ble_pty = next((p for p in ptys if p.name == "BLE"), None)
     bt_proc = None
-    bt_status = None
     hci_dev = None
 
     ot_pty = next((p for p in ptys if p.name == "OT"), None)
     ot_proc = None
-    ot_status = None
 
     old_settings = termios.tcgetattr(sys.stdin)
-    if args.bt_attach and ble_pty:
-        # We must use the slave path for btattach
-        slave_path = os.ttyname(ble_pty.slave)
-        try:
-            bt_proc = await asyncio.create_subprocess_exec(
-                "sudo", "btattach", "-B", slave_path, "-S", str(args.baudrate), "-P", "h4",
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
-            )
-            await asyncio.sleep(1.5)
-            # Detect HCI Interface
-            h_proc = await asyncio.create_subprocess_shell("hciconfig", stdout=asyncio.subprocess.PIPE, stdin=subprocess.DEVNULL)
-            stdout, _ = await h_proc.communicate()
-            match = re.search(r"(hci\d+):", stdout.decode())
-            if match:
-                hci_dev = match.group(1)
-                await asyncio.create_subprocess_exec("sudo", "hciconfig", hci_dev, "up")
-                bt_status = f"Active on {slave_path} (PID: {bt_proc.pid})"
-        except Exception as e:
-            bt_status = f"Failed to start: {e}"
-
-    if args.ot_manager != "None" and ot_pty:
-        slave_path = os.ttyname(ot_pty.slave)
-        daemon = args.ot_manager
-        daemon_args = [daemon]
-        if daemon == "otbr-agent":
-            daemon_args += ["-I", "wpan0", "-B", "eth0"]
-
-        daemon_args.append(f"spinel+hdlc+uart://{slave_path}?uart-baudrate={args.baudrate}&{'uart-flow-control' if args.rtscts else ''}")
-        try:
-            ot_proc = await asyncio.create_subprocess_exec(
-                "sudo", *daemon_args,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
-            )
-            await asyncio.sleep(1.5)
-            ot_status = f"{daemon} active on {slave_path} (PID: {ot_proc.pid})"
-        except Exception as e:
-            ot_status = f"{daemon} failed to start: {e}"
-
     try:
         # Restore old settings as previous subprocess may have changed them
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
@@ -361,13 +337,53 @@ async def main():
         for p_desc in ptys:
             loop.add_reader(p_desc.master, pty_reader, p_desc.master, p_desc.channel_id)
 
-        print_status(args, bt_status, hci_dev, ot_status)
-
-
         rx_task = asyncio.create_task(uart_rx())
+
+        if args.bt_attach and ble_pty:
+            from utils import get_last_hci_interface
+            # We must use the slave path for btattach
+            slave_path = os.ttyname(ble_pty.slave)
+            try:
+                params = ["sudo", "btattach", "-B", slave_path, "-S", str(args.baudrate), "-P", "h4"]
+                bt_proc = await asyncio.create_subprocess_exec(
+                    *params,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                )
+                bt_proc.command_line = " ".join(params)
+                bt_proc.command = params[1]
+                bt_proc.slave_path = slave_path
+            except Exception as e:
+                logger.error(f"btattach failed to start: {e}")
+
+            await asyncio.sleep(1.5)
+            hci_dev = await get_last_hci_interface()
+        if args.ot_manager != "None" and ot_pty:
+            slave_path = os.ttyname(ot_pty.slave)
+            daemon = args.ot_manager
+            daemon_args = [daemon]
+            if daemon == "otbr-agent":
+                daemon_args += ["-I", "wpan0", "-B", "eth0"]
+
+            daemon_args.append(f"spinel+hdlc+uart://{slave_path}?uart-baudrate={args.baudrate}&{'uart-flow-control' if args.rtscts else ''}")
+            daemon_args = ["sudo"] + daemon_args
+            try:
+                ot_proc = await asyncio.create_subprocess_exec(
+                    *daemon_args,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                )
+                ot_proc.command_line = " ".join(daemon_args)
+                ot_proc.command = daemon_args[1]
+                ot_proc.slave_path = slave_path
+                await asyncio.sleep(1.5)
+            except Exception as e:
+                logger.error(f"{daemon} failed to start: {e}")
+
+        print_status(args, bt_proc, hci_dev, ot_proc)
         await stop_event.wait()          # wait for 'q'
         rx_task.cancel()                 # interrupt reader.read()
         await rx_task                    # let it exit cleanly
+    except Exception as e:
+        print (e)
     finally:
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
