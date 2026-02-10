@@ -283,6 +283,15 @@ config OPENTHREAD_COPROCESSOR_UART_RING_BUFFER_SIZE
 	help
 	  TX buffer size for the OpenThread Co-Processor UART.
 
+config OPENTHREAD_COPROCESSOR_UART_RX_BUFFER_SIZE
+	int "Set Co-Processor UART RX buffer size"
+	depends on UART_ASYNC_API
+	range 0 1024
+	default 256
+	help
+	  RX buffer size for the OpenThread Co-Processor UART.
+	  Setting this to 0 will disable the internal RX buffer allocation.
+
 config OPENTHREAD_COPROCESSOR_VENDOR_HOOK_SOURCE
 	string "Path to vendor hook source file"
 	help
