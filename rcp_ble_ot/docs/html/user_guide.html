@@ -142,16 +142,87 @@
 </section>
 <section id="software-setup">
 <h2>Software Setup</h2>
+<p>Openthread can be run by either ot-daemon or otbr-agent. The instructions below cover both options, but you only need to follow one based on your preference.</p>
+<section id="option-1-building-ot-daemon-and-ot-ctl-from-source">
+<h3>Option 1: Building ot-daemon and ot-ctl from source</h3>
+<p>If you wish to build the OpenThread daemon from source, follow these steps:</p>
+<ol class="arabic">
+<li><p><strong>Clone the OpenThread repository</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/openthread/openthread.git
+</pre></div>
+</div>
+</li>
+<li><p><strong>Build</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>openthread
+./script/bootstrap
+./script/cmake-build<span class="w"> </span>posix<span class="w"> </span>-DOT_DAEMON<span class="o">=</span>ON
+</pre></div>
+</div>
+</li>
+<li><p><strong>Install executables</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>build/posix/src/posix
+sudo<span class="w"> </span>cp<span class="w"> </span>ot-daemon<span class="w"> </span>ot-ctl<span class="w"> </span>/usr/local/bin/
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="option-2-building-otbr-agent-from-source">
+<h3>Option 2: Building otbr-agent from source</h3>
+<p>If you wish to use the OpenThread Border Router (otbr-agent) you may need to build it from source.
+Follow these steps:</p>
+<ol class="arabic">
+<li><p><strong>Clone the OTBR repository</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~
+git<span class="w"> </span>clone<span class="w"> </span>--depth<span class="o">=</span><span class="m">1</span><span class="w"> </span>https://github.com/openthread/ot-br-posix.git
+</pre></div>
+</div>
+</li>
+<li><p><strong>Build</strong>:
+Execute following commands, replacing <code class="docutils literal notranslate"><span class="pre">wlan0</span></code> with the name of your network interface that will be used by the Border Router as a backbone connection for Thread.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>ot-br-posix
+./script/bootstrap
+<span class="nv">INFRA_IF_NAME</span><span class="o">=</span>wlan0<span class="w"> </span>./script/setup
+</pre></div>
+</div>
+</li>
+</ol>
+<p>3. <strong>Install executables</strong>:
+The following steps will copy otbr-agent and ot-ctl to /usr/local/bin for system-wide access. If you have already built ot-daemon from the previous option, you can skip copying ot-ctl again.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>build/otbr/src/agent/cp<span class="w"> </span>otbr-agent<span class="w"> </span>/usr/local/bin/
+sudo<span class="w"> </span>build/otbr/src/third_party/openthread/repo/src/posix/ot-ctl<span class="w"> </span>/usr/local/bin/
+</pre></div>
+</div>
+</div></blockquote>
+</section>
 <section id="ubuntu-configuration">
 <h3>Ubuntu Configuration</h3>
 <ol class="arabic">
-<li><p><strong>Python Version</strong>: Ensure you have <strong>Python 3.9 or later</strong> installed. You can check your version by running <cite>python3 –version</cite>.</p></li>
-<li><p><strong>Permissions</strong>: Add your user to the dialout group to access serial ports:</p>
+<li><p><strong>Python Version</strong>: Ensure you have <strong>Python 3.9 or later</strong> installed. You can check your version by running <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">--version</span></code>.</p></li>
+<li><p><strong>Install system-wide dependencies</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>python3-pydbus
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>python3-sdbus
+</pre></div>
+</div>
+</li>
+<li><p><strong>Permissions for serial ports</strong>: Add your user to the dialout group to access serial ports:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>usermod<span class="w"> </span>-aG<span class="w"> </span>dialout<span class="w"> </span><span class="nv">$USER</span>
 </pre></div>
 </div>
 <p><em>(Note: You must log out and back in for changes to apply).</em></p>
 </li>
+<li><p><strong>Permissions for btattach and ot-daemon tools</strong>:
+This is a step required if the uart_mux_asyncio.py script (see below) is launched with <code class="docutils literal notranslate"><span class="pre">--bt-attach</span></code> and/or <code class="docutils literal notranslate"><span class="pre">--ot-manager</span></code> options, as these tools require root permissions to run.
+Add a sudoers rule for your user to allow running btattach and ot-daemon/otbr-agent without a password. For example, add this to /etc/sudoers (using visudo):</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>yourusername ALL=(ALL) NOPASSWD: /usr/bin/btattach, /usr/local/bin/ot-daemon, /usr/local/bin/otbr-agent
+</pre></div>
+</div>
+<p>Put this near the end of the file, after any existing <code class="docutils literal notranslate"><span class="pre">&#64;includedir</span> <span class="pre">/etc/sudoers.d</span></code> line or before it, but not inside comments.</p>
+</li>
+</ol>
+<ol class="arabic" start="4">
 <li><p><strong>Conflict Resolution</strong>: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>ModemManager
 </pre></div>
@@ -190,14 +261,22 @@ This allows you to run:</p>
 </ul>
 <p>all over the same physical UART.</p>
 <p>The usage is identical for <strong>NUCLEO-WBA65RI</strong> and <strong>NUCLEO-WBA55CG</strong>.</p>
-<p>1. <strong>Install Dependencies</strong>:
+<ol class="arabic" start="2">
+<li><p><strong>Create and activate Python virtual environment</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>--system-site-packages<span class="w"> </span>.venv
+<span class="nb">source</span><span class="w"> </span>.venv/bin/activate
+</pre></div>
+</div>
+</li>
+</ol>
+<p>3. <strong>Install Dependencies in virtual environment</strong>:
 (Requires Python 3.9 or later)</p>
 <blockquote>
 <div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>pyserial-asyncio
 </pre></div>
 </div>
 </div></blockquote>
-<ol class="arabic" start="2">
+<ol class="arabic" start="4">
 <li><p><strong>Launch Script</strong>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace /dev/ttyACM1 with your board&#39;s secondary VCP port</span>
 sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--bt-attach<span class="w"> </span>--ot-manager<span class="w"> </span>ot-daemon
@@ -210,7 +289,7 @@ sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<s
 <p>The script requires root access to spawn the bluetooth and openthread processes. It also requires <cite>btattach</cite> and/or <cite>ot-daemon</cite> executables in the path when
 the options <cite>–bt-attach</cite> and/or <cite>–ot-manager ot-daemon</cite> are specified.</p>
 </div>
-<ol class="arabic" start="3">
+<ol class="arabic" start="5">
 <li><p><strong>Monitor Connection Status</strong>:
 While the script is running, it provides real-time logging. Press the <strong>‘i’</strong> key at any time to display the current connection status:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>============================================================
@@ -220,9 +299,9 @@ While the script is running, it provides real-time logging. Press the <strong>�
  Port:        /dev/ttyACM1
  Baudrate:    2000000
  Flow Ctrl:   Hardware (RTS/CTS)
- Bluetooth:   Active on /dev/pts/3 (PID: 3329203)
- HCI Intf:    hci0
- OT daemon:   ot-daemon active on /dev/pts/4 (PID: 3329213)
+ Bluetooth:   btattach S (sleeping) on /dev/pts/3 (PID: 3329203)
+ HCI Intf:    hci0: ON (00:00:00:00:00:04)
+ OT daemon:   ot-daemon S (sleeping) on /dev/pts/4 (PID: 3329213)
 ------------------------------------------------------------
  CHANNEL      | PTY DEVICE
 ------------------------------------------------------------
@@ -315,7 +394,7 @@ sudo<span class="w"> </span>minicom<span class="w"> </span>-D<span class="w"> </
     </div>
     <div class="footer" role="contentinfo">
     &#169; Copyright 2026, STMicroelectronics.
-      Last updated on 2026-02-05 18:19:30.
+      Last updated on 2026-02-11 14:37:24.
       Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
     </div>
   </body>
