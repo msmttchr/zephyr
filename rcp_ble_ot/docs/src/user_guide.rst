@@ -69,12 +69,75 @@ The following configurations are required across the mezzanine and MCU boards:
 
 Software Setup
 **************
+Openthread can be run by either ot-daemon or otbr-agent. The instructions below cover both options, but you only need to follow one based on your preference.
+
+Option 1: Building ot-daemon and ot-ctl from source
+===================================================
+If you wish to build the OpenThread daemon from source, follow these steps:
+
+1. **Clone the OpenThread repository**:
+   
+   .. code-block:: bash
+
+      cd ~
+      git clone https://github.com/openthread/openthread.git
+
+2. **Build**:
+   
+   .. code-block:: bash
+
+      cd openthread
+      ./script/bootstrap
+      ./script/cmake-build posix -DOT_DAEMON=ON
+
+3. **Install executables**:
+   
+   .. code-block:: bash
+   
+      cd build/posix/src/posix
+      sudo cp ot-daemon ot-ctl /usr/local/bin/
+
+Option 2: Building otbr-agent from source
+=========================================
+If you wish to use the OpenThread Border Router (otbr-agent) you may need to build it from source.
+Follow these steps:
+
+1. **Clone the OTBR repository**:
+   
+   .. code-block:: bash
+
+      cd ~
+      git clone --depth=1 https://github.com/openthread/ot-br-posix.git
+
+2. **Build**:
+   Execute following commands, replacing ``wlan0`` with the name of your network interface that will be used by the Border Router as a backbone connection for Thread.
+   
+   .. code-block:: bash
+
+      cd ot-br-posix
+      ./script/bootstrap
+      INFRA_IF_NAME=wlan0 ./script/setup   
+
+3. **Install executables**:
+The following steps will copy otbr-agent and ot-ctl to /usr/local/bin for system-wide access. If you have already built ot-daemon from the previous option, you can skip copying ot-ctl again.
+   
+   .. code-block:: bash
+
+      sudo build/otbr/src/agent/cp otbr-agent /usr/local/bin/
+      sudo build/otbr/src/third_party/openthread/repo/src/posix/ot-ctl /usr/local/bin/
 
 Ubuntu Configuration
 ====================
-1. **Python Version**: Ensure you have **Python 3.9 or later** installed. You can check your version by running `python3 --version`.
+1. **Python Version**: Ensure you have **Python 3.9 or later** installed. You can check your version by running ``python3 --version``.
 
-2. **Permissions**: Add your user to the dialout group to access serial ports:
+2. **Install system-wide dependencies**
+
+   .. code-block:: bash
+
+      sudo apt install python3-pydbus
+      sudo apt install python3-sdbus
+
+3. **Permissions for serial ports**: Add your user to the dialout group to access serial ports:
    
    .. code-block:: bash
 
@@ -82,13 +145,23 @@ Ubuntu Configuration
 
    *(Note: You must log out and back in for changes to apply).*
 
-3. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
+4. **Permissions for btattach and ot-daemon tools**:
+   This is a step required if the uart_mux_asyncio.py script (see below) is launched with ``--bt-attach`` and/or ``--ot-manager`` options, as these tools require root permissions to run.
+   Add a sudoers rule for your user to allow running btattach and ot-daemon/otbr-agent without a password. For example, add this to /etc/sudoers (using visudo):
+
+   .. code-block:: text
+
+      yourusername ALL=(ALL) NOPASSWD: /usr/bin/btattach, /usr/local/bin/ot-daemon, /usr/local/bin/otbr-agent
+
+   Put this near the end of the file, after any existing ``@includedir /etc/sudoers.d`` line or before it, but not inside comments.
+
+4. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
    
    .. code-block:: bash
 
       sudo systemctl disable --now ModemManager
 
-4. **ST-LINK Rules**: Create a file at ``/etc/udev/rules.d/49-stlinkv3.rules`` to allow access to the ST-LINK/V3 bridge without root permissions:
+5. **ST-LINK Rules**: Create a file at ``/etc/udev/rules.d/49-stlinkv3.rules`` to allow access to the ST-LINK/V3 bridge without root permissions:
 
    .. code-block:: text
 
@@ -121,14 +194,21 @@ all over the same physical UART.
 
 The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
 
-1. **Install Dependencies**:
+2. **Create and activate Python virtual environment**:
+   
+   .. code-block:: bash
+
+      python3 -m venv --system-site-packages .venv
+      source .venv/bin/activate
+
+3. **Install Dependencies in virtual environment**:
 (Requires Python 3.9 or later)
    
    .. code-block:: bash
 
       pip install pyserial-asyncio
 
-2. **Launch Script**:
+4. **Launch Script**:
    
    .. code-block:: bash
 
@@ -139,7 +219,7 @@ The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
    The script requires root access to spawn the bluetooth and openthread processes. It also requires `btattach` and/or `ot-daemon` executables in the path when
    the options `--bt-attach` and/or `--ot-manager ot-daemon` are specified.
 
-3. **Monitor Connection Status**:
+5. **Monitor Connection Status**:
    While the script is running, it provides real-time logging. Press the **'i'** key at any time to display the current connection status:
 
    .. code-block:: text
@@ -151,9 +231,9 @@ The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
        Port:        /dev/ttyACM1
        Baudrate:    2000000
        Flow Ctrl:   Hardware (RTS/CTS)
-       Bluetooth:   Active on /dev/pts/3 (PID: 3329203)
-       HCI Intf:    hci0
-       OT daemon:   ot-daemon active on /dev/pts/4 (PID: 3329213)
+       Bluetooth:   btattach S (sleeping) on /dev/pts/3 (PID: 3329203)
+       HCI Intf:    hci0: ON (00:00:00:00:00:04)
+       OT daemon:   ot-daemon S (sleeping) on /dev/pts/4 (PID: 3329213)
       ------------------------------------------------------------
        CHANNEL      | PTY DEVICE
       ------------------------------------------------------------
