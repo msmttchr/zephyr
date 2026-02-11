@@ -39,6 +39,16 @@ struct k_poll_signal uart_c2h_tx_sig;
 
 static K_FIFO_DEFINE(c2h_queue);
 
+extern struct k_mutex ble_ctrl_stack_mutex;
+
+int safe_bt_send(struct net_buf *buf)
+{
+	int return_value;
+	k_mutex_lock(&ble_ctrl_stack_mutex, K_FOREVER);
+	return_value = bt_send(buf);
+	k_mutex_unlock(&ble_ctrl_stack_mutex);
+	return return_value;
+}
 /* -------------------------------------------------------------------------- */
 /*                              RX BYTE FIFO                                  */
 /* -------------------------------------------------------------------------- */
@@ -192,7 +202,7 @@ static void recover_sync_by_reset_pattern(void)
 				      &h4_cmd_reset[1], sizeof(h4_cmd_reset) - 1);
 	LOG_DBG("Fowarding reset");
 
-	err = bt_send(h2c_cmd_reset);
+	err = safe_bt_send(h2c_cmd_reset);
 	__ASSERT(!err, "Failed to send reset: %d", err);
 }
 
@@ -298,7 +308,7 @@ static void h2c_h4_transport(void)
 
 		/* Route buf to Controller. */
 		if (buf) {
-			err = bt_send(buf);
+			err = safe_bt_send(buf);
 			if (err) {
 				/* This is not a transport error. */
 				LOG_ERR("bt_send err %d", err);
