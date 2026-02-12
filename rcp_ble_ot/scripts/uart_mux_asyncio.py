@@ -218,6 +218,8 @@ async def main():
     parser.add_argument("--ot-manager", default="None",
                          choices=["None", "ot-daemon", "otbr-agent"],
                          help="Automatically run selected manager on OT PTY")
+    parser.add_argument("--backbone", default="eth0",
+                         help="Backbone network interface for otbr-agent (default: eth0)")
     parser.add_argument("--log-tx", action="store_true",
                         help="Log TX frames only")
     parser.add_argument("--channel", type=lambda x: int(x, 0),
@@ -363,7 +365,7 @@ async def main():
             daemon = args.ot_manager
             daemon_args = [daemon]
             if daemon == "otbr-agent":
-                daemon_args += ["-I", "wpan0", "-B", "eth0"]
+                daemon_args += ["-I", "wpan0", "-B", args.backbone]
 
             daemon_args.append(f"spinel+hdlc+uart://{slave_path}?uart-baudrate={args.baudrate}&{'uart-flow-control' if args.rtscts else ''}")
             daemon_args = ["sudo"] + daemon_args
