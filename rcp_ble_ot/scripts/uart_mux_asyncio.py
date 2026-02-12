@@ -347,7 +347,8 @@ async def main():
                 params = ["sudo", "btattach", "-B", slave_path, "-S", str(args.baudrate), "-P", "h4"]
                 bt_proc = await asyncio.create_subprocess_exec(
                     *params,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                    preexec_fn=os.setsid
                 )
                 bt_proc.command_line = " ".join(params)
                 bt_proc.command = params[1]
@@ -369,7 +370,8 @@ async def main():
             try:
                 ot_proc = await asyncio.create_subprocess_exec(
                     *daemon_args,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                    preexec_fn=os.setsid
                 )
                 ot_proc.command_line = " ".join(daemon_args)
                 ot_proc.command = daemon_args[1]
