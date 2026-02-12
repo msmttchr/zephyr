@@ -1,51 +1,12 @@
 name: "Repo visibility check"
 
 on:
-  workflow_dispatch:   # run manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
-  detect-visibility:
+  test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read   # required for the repos API
-
     steps:
-      - name: "Show basic context"
-        run: |
-          echo "Repository: ${{ github.repository }}"
-          echo "Server URL: ${{ github.server_url }}"
-          echo "API URL: ${GITHUB_API_URL}"
-
-      - name: "Detect repository visibility"
-        env:
-          REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Querying visibility for repo: ${REPO}"
-
-          # Call the GitHub API to get repository metadata
-          visibility=$(curl -sSf \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${REPO}" \
-            | jq -r '.private')
-
-          echo "API .private field = ${visibility}"
-
-          if [ "${visibility}" = "true" ]; then
-            echo "=> This is a PRIVATE repository"
-            echo "REPO_VISIBILITY=private" >> "$GITHUB_ENV"
-          else
-            echo "=> This is a PUBLIC repository"
-            echo "REPO_VISIBILITY=public" >> "$GITHUB_ENV"
-          fi
-
-      - name: "Use the detected visibility (example)"
-        run: |
-          echo "REPO_VISIBILITY from environment: ${REPO_VISIBILITY}"
-
-          if [ "${REPO_VISIBILITY}" = "private" ]; then
-            echo "Running logic dedicated to PRIVATE repositories..."
-          else
-            echo "Running logic dedicated to PUBLIC repositories..."
-          fi
+      - name: "Sanity check"
+        run: echo "Workflow is visible and can be run on demand."
+  
