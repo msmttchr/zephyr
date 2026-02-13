@@ -261,14 +261,15 @@ This allows you to run:</p>
 </ul>
 <p>all over the same physical UART.</p>
 <p>The usage is identical for <strong>NUCLEO-WBA65RI</strong> and <strong>NUCLEO-WBA55CG</strong>.</p>
-<ol class="arabic" start="2">
-<li><p><strong>Create and activate Python virtual environment</strong>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>--system-site-packages<span class="w"> </span>.venv
+<p>2. <strong>Create and activate Python virtual environment</strong>:
+Before running the script for the first time, it is recommended to create a Python virtual environment to manage dependencies.
+Once the virtual environment has been created, it is sufficient to activate it before running the script in the future.</p>
+<blockquote>
+<div><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>--system-site-packages<span class="w"> </span>.venv
 <span class="nb">source</span><span class="w"> </span>.venv/bin/activate
 </pre></div>
 </div>
-</li>
-</ol>
+</div></blockquote>
 <p>3. <strong>Install Dependencies in virtual environment</strong>:
 (Requires Python 3.9 or later)</p>
 <blockquote>
@@ -279,15 +280,15 @@ This allows you to run:</p>
 <ol class="arabic" start="4">
 <li><p><strong>Launch Script</strong>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace /dev/ttyACM1 with your board&#39;s secondary VCP port</span>
-sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--bt-attach<span class="w"> </span>--ot-manager<span class="w"> </span>ot-daemon
+python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--bt-attach<span class="w"> </span>--ot-manager<span class="w"> </span>ot-daemon
 </pre></div>
 </div>
 </li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The script requires root access to spawn the bluetooth and openthread processes. It also requires <cite>btattach</cite> and/or <cite>ot-daemon</cite> executables in the path when
-the options <cite>–bt-attach</cite> and/or <cite>–ot-manager ot-daemon</cite> are specified.</p>
+<p>The script launches <code class="docutils literal notranslate"><span class="pre">btattach</span></code> and <code class="docutils literal notranslate"><span class="pre">ot-daemon</span></code> (or <code class="docutils literal notranslate"><span class="pre">otbr-agent</span></code>) with root access, when the options <code class="docutils literal notranslate"><span class="pre">--bt-attach</span></code> and/or <code class="docutils literal notranslate"><span class="pre">--ot-manager</span></code> are specified.
+It also requires the executables to be in the system’s PATH.</p>
 </div>
 <ol class="arabic" start="5">
 <li><p><strong>Monitor Connection Status</strong>:
@@ -366,7 +367,7 @@ sudo<span class="w"> </span>minicom<span class="w"> </span>-D<span class="w"> </
 <section id="multiplexer-verbose-logging">
 <h3>Multiplexer Verbose Logging</h3>
 <p>If the protocol stacks are not connecting or data is not flowing, restart the multiplexer script with extra debugging flags to inspect the raw packets exchanged:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--log-level<span class="w"> </span>DEBUG<span class="w"> </span>--log-rx<span class="w"> </span>--log-tx
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>uart_mux_asyncio.py<span class="w"> </span>--port<span class="w"> </span>/dev/ttyACM1<span class="w"> </span>--baudrate<span class="w"> </span><span class="m">2000000</span><span class="w"> </span>--log-level<span class="w"> </span>DEBUG<span class="w"> </span>--log-rx<span class="w"> </span>--log-tx
 </pre></div>
 </div>
 </section>
@@ -394,7 +395,7 @@ sudo<span class="w"> </span>minicom<span class="w"> </span>-D<span class="w"> </
     </div>
     <div class="footer" role="contentinfo">
     &#169; Copyright 2026, STMicroelectronics.
-      Last updated on 2026-02-12 17:10:45.
+      Last updated on 2026-02-13 09:22:59.
       Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
     </div>
   </body>
