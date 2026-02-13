@@ -130,20 +130,19 @@ Ubuntu Configuration
 ====================
 1. **Python Version**: Ensure you have **Python 3.9 or later** installed. You can check your version by running ``python3 --version``.
 
-2. **Install system-wide dependencies**
+2. **Install ST-Link Tools**: Install the ST-Link tools to enable flashing and debugging of the NUCLEO board from your PC.
+   
+   .. code-block:: bash
+
+      sudo apt update
+      sudo apt install stlink-tools
+
+3. **Install system-wide dependencies for Python**
 
    .. code-block:: bash
 
       sudo apt install python3-pydbus
       sudo apt install python3-sdbus
-
-3. **Permissions for serial ports**: Add your user to the dialout group to access serial ports:
-   
-   .. code-block:: bash
-
-      sudo usermod -aG dialout $USER
-
-   *(Note: You must log out and back in for changes to apply).*
 
 4. **Permissions for btattach and ot-daemon tools**:
    This is a step required if the uart_mux_asyncio.py script (see below) is launched with ``--bt-attach`` and/or ``--ot-manager`` options, as these tools require root permissions to run.
@@ -155,19 +154,11 @@ Ubuntu Configuration
 
    Put this near the end of the file, after any existing ``@includedir /etc/sudoers.d`` line or before it, but not inside comments.
 
-4. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
+5. **Conflict Resolution**: Disable ModemManager to prevent it from attempting to send AT commands to the NUCLEO board:
    
    .. code-block:: bash
 
       sudo systemctl disable --now ModemManager
-
-5. **ST-LINK Rules**: Create a file at ``/etc/udev/rules.d/49-stlinkv3.rules`` to allow access to the ST-LINK/V3 bridge without root permissions:
-
-   .. code-block:: text
-
-      SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374d", MODE="0666", GROUP="dialout"
-      SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374e", MODE="0666", GROUP="dialout"
-      SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374f", MODE="0666", GROUP="dialout"
 
 NUCLEO configuration
 ====================
