@@ -195,6 +195,8 @@ all over the same physical UART.
 The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
 
 2. **Create and activate Python virtual environment**:
+Before running the script for the first time, it is recommended to create a Python virtual environment to manage dependencies.
+Once the virtual environment has been created, it is sufficient to activate it before running the script in the future.
    
    .. code-block:: bash
 
@@ -213,11 +215,11 @@ The usage is identical for **NUCLEO-WBA65RI** and **NUCLEO-WBA55CG**.
    .. code-block:: bash
 
       # Replace /dev/ttyACM1 with your board's secondary VCP port
-      sudo python3 uart_mux_asyncio.py --port /dev/ttyACM1 --baudrate 2000000 --bt-attach --ot-manager ot-daemon
+      python3 uart_mux_asyncio.py --port /dev/ttyACM1 --baudrate 2000000 --bt-attach --ot-manager ot-daemon
 
 .. note::
-   The script requires root access to spawn the bluetooth and openthread processes. It also requires `btattach` and/or `ot-daemon` executables in the path when
-   the options `--bt-attach` and/or `--ot-manager ot-daemon` are specified.
+   The script launches ``btattach`` and ``ot-daemon`` (or ``otbr-agent``) with root access, when the options ``--bt-attach`` and/or ``--ot-manager`` are specified.
+   It also requires the executables to be in the system's PATH.
 
 5. **Monitor Connection Status**:
    While the script is running, it provides real-time logging. Press the **'i'** key at any time to display the current connection status:
@@ -300,5 +302,5 @@ If the protocol stacks are not connecting or data is not flowing, restart the mu
 
 .. code-block:: bash
 
-   sudo python3 uart_mux_asyncio.py --port /dev/ttyACM1 --baudrate 2000000 --log-level DEBUG --log-rx --log-tx
+   python3 uart_mux_asyncio.py --port /dev/ttyACM1 --baudrate 2000000 --log-level DEBUG --log-rx --log-tx
 
