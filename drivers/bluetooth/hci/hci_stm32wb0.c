@@ -84,9 +84,6 @@ uint8_t BLEPLAT_SetRadioTimerValue(uint32_t Time, uint8_t EventType, uint8_t Cal
 static void blestack_process(struct k_work *work)
 {
 	BLE_STACK_Tick();
-	if (BLE_STACK_SleepCheck() == 0) {
-		k_work_reschedule(&ble_stack_work, K_NO_WAIT);
-	}
 }
 
 /* "If, since the last power-on or reset, the Host has ever issued a legacy
@@ -207,7 +204,7 @@ void send_event(uint8_t *buffer_out, uint16_t buffer_out_length, int8_t overflow
 	}
 }
 
-void HAL_RADIO_TIMER_TxRxWakeUpCallback(void)
+void BLE_STACK_ProcessRequest(void)
 {
 	k_work_schedule(&ble_stack_work, K_NO_WAIT);
 }
@@ -215,7 +212,6 @@ void HAL_RADIO_TIMER_TxRxWakeUpCallback(void)
 void HAL_RADIO_TxRxCallback(uint32_t flags)
 {
 	BLE_STACK_RadioHandler(flags);
-	k_work_schedule(&ble_stack_work, K_NO_WAIT);
 }
 
 void HAL_RADIO_RRMCallback(uint32_t ble_irq_status)
@@ -247,7 +243,7 @@ ISR_DIRECT_DECLARE(RADIO_RRM_IRQHandler)
 /* Function called from PKA_IRQHandler() context. */
 void PKAMGR_IRQCallback(void)
 {
-	k_work_schedule(&ble_stack_work, K_NO_WAIT);
+	k_work_schedule(&ble_stack_work, K_NO_WAIT); /* Can be removed? Is it only used in FreeRTOS in Cube1.4.0, to be checked with Salvo */
 }
 
 static void _PKA_IRQHandler(void *args)
@@ -498,7 +494,7 @@ static int bt_hci_stm32wb0_open(const struct device *dev)
 
 	aci_adv_nwk_init();
 	k_work_init_delayable(&ble_stack_work, blestack_process);
-	k_work_schedule(&ble_stack_work, K_NO_WAIT);
+	k_work_schedule(&ble_stack_work, K_NO_WAIT); /* Is it needed: to be checked with Salvo */
 
 	return 0;
 }
