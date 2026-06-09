@@ -240,12 +240,6 @@ ISR_DIRECT_DECLARE(RADIO_RRM_IRQHandler)
 	return 1;
 }
 
-/* Function called from PKA_IRQHandler() context. */
-void PKAMGR_IRQCallback(void)
-{
-	k_work_schedule(&ble_stack_work, K_NO_WAIT); /* Can be removed? Is it only used in FreeRTOS in Cube1.4.0, to be checked with Salvo */
-}
-
 static void _PKA_IRQHandler(void *args)
 {
 	ARG_UNUSED(args);
@@ -494,7 +488,6 @@ static int bt_hci_stm32wb0_open(const struct device *dev)
 
 	aci_adv_nwk_init();
 	k_work_init_delayable(&ble_stack_work, blestack_process);
-	k_work_schedule(&ble_stack_work, K_NO_WAIT); /* Is it needed: to be checked with Salvo */
 
 	return 0;
 }
