@@ -69,7 +69,6 @@ struct aci_reset {
 
 static uint8_t bt_hci_state = BT_HCI_STATE_DEINIT;
 extern uint8_t ll_state_busy;
-extern bool standby_entered;
 
 static bool is_hci_event_discardable(const uint8_t *evt_data)
 {
@@ -591,30 +590,25 @@ static int radio_pm_action(const struct device *dev, enum pm_device_action actio
 	case PM_DEVICE_ACTION_RESUME:
 		LL_AHB5_GRP1_EnableClock(LL_AHB5_GRP1_PERIPH_RADIO);
 #if defined(CONFIG_PM_S2RAM)
-		if (ll_sys_dp_slp_get_state() == LL_SYS_DP_SLP_ENABLED) {
-			if (standby_entered) {
-				/* Restore NVIC configuration for radio */
-				link_layer_register_isr();
-				ll_sys_dp_slp_exit();
-			}
-		}
+		ll_sys_dp_slp_exit();
 #endif /* CONFIG_PM_S2RAM */
 		LINKLAYER_PLAT_NotifyWFIExit();
 		break;
 	case PM_DEVICE_ACTION_SUSPEND:
 #if defined(CONFIG_PM_S2RAM)
-		if (ll_sys_dp_slp_get_state() == LL_SYS_DP_SLP_DISABLED) {
-			uint64_t next_radio_evt;
-			enum pm_state state = pm_state_next_get(_current_cpu->id)->state;
+		uint64_t next_radio_evt;
+		enum pm_state state = pm_state_next_get(_current_cpu->id)->state;
 
-			if (state == PM_STATE_SUSPEND_TO_RAM) {
-				next_radio_evt = os_timer_get_earliest_time();
-				if (next_radio_evt > CFG_LPM_STDBY_WAKEUP_TIME) {
-					/* No event in a "near" future */
-					next_radio_evt -= CFG_LPM_STDBY_WAKEUP_TIME;
-					ll_sys_dp_slp_enter(next_radio_evt);
-				}
+		if (state == PM_STATE_SUSPEND_TO_RAM) {
+			/* System will enter S2RAM, program wakeup timer for
+			 * possible radio event
+			 */
+			next_radio_evt = os_timer_get_earliest_time();
+			if (next_radio_evt != LL_DP_SLP_NO_WAKEUP) {
+				next_radio_evt -= CFG_LPM_STDBY_WAKEUP_TIME;
+				next_radio_evt = MAX(0, next_radio_evt);
 			}
+			(void)ll_sys_dp_slp_enter(next_radio_evt);
 		}
 #endif /* CONFIG_PM_S2RAM */
 		LINKLAYER_PLAT_NotifyWFIEnter();
