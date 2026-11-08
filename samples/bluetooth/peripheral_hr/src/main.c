@@ -17,6 +17,8 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/services/bas.h>
 #include <zephyr/bluetooth/services/hrs.h>
+#include <zephyr/tracing/tracing.h>
+#include <stdlib.h>
 
 static bool hrf_ntf_enabled;
 
@@ -260,11 +262,44 @@ int main(void)
 
 	blink_start();
 #endif /* HAS_LED */
-
+	int counter = 0;
+	extern uint32_t os_timer_get_current_time(void);
+	uint32_t radio_timer_start = os_timer_get_current_time()/32;
+	uint32_t sys_clock_start = k_uptime_get_32();
+	uint32_t radio_timer_last = radio_timer_start;
+	uint32_t sys_clock_last = sys_clock_start;
+	int error_count = 0;
 	/* Implement notification. */
 	while (1) {
 		k_sleep(K_SECONDS(1));
 
+		uint32_t radio_timer_now = os_timer_get_current_time()/32;
+		uint32_t sys_clock_now = k_uptime_get_32();
+		int32_t delta_radio_timer = radio_timer_now-radio_timer_start;
+		int32_t delta_sys_clock = sys_clock_now-sys_clock_start;
+		int32_t delta_last_radio_timer = radio_timer_now-radio_timer_last;
+		int32_t delta_last_sys_clock = sys_clock_now-sys_clock_last;
+		bool error = abs(delta_last_radio_timer-delta_last_sys_clock) > 5;
+		if (error) {
+		  error_count++;
+		}
+		sys_trace_named_event("Loop", counter, sys_clock_now-sys_clock_start);
+		printf("Loop %d, instant delta: %d, %d r (%d) cum delta: %d, %d r (%d), (errors:%d) %s\n",
+		       counter++,
+		       delta_last_sys_clock,
+		       delta_last_radio_timer,
+		       delta_last_sys_clock - delta_last_radio_timer,
+		       delta_sys_clock,
+		       delta_radio_timer,
+		       delta_sys_clock - delta_radio_timer,
+		       error_count,
+		       error ? "****": ""
+		       );
+		sys_clock_last = sys_clock_now;
+		radio_timer_last = radio_timer_now;
+		if (counter > 15) {
+		  // k_panic();
+		}
 		/* Heartrate measurements simulation */
 		hrs_notify();
 
