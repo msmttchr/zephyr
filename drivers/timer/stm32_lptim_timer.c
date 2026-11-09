@@ -77,7 +77,7 @@ static uint32_t lptim_time_base;
 static uint32_t lptim_clock_freq = CONFIG_STM32_LPTIM_CLOCK;
 /* The prescaler given by the DTS and to apply to the lptim_clock_freq */
 static uint32_t lptim_clock_presc = DT_PROP(LPTIM_SYSTIMER_NODE, st_prescaler);
-
+static bool lptim_counter_started = false;
 /* Minimum nb of clock cycles to have to set autoreload register correctly */
 #define LPTIM_GUARD_VALUE 2
 
@@ -262,6 +262,18 @@ static inline bool arrm_state_get(void)
 	return (LL_LPTIM_IsActiveFlag_ARRM(LPTIM) && LL_LPTIM_IsEnabledIT_ARRM(LPTIM));
 }
 
+static inline bool is_lptim_started(void)
+{
+	return lptim_counter_started;
+}
+
+static inline void lptim_start(LPTIM_TypeDef *LPTIMx)
+{
+	/* Start the LPTIM counter in continuous mode */
+	LL_LPTIM_StartCounter(LPTIM, LL_LPTIM_OPERATING_MODE_CONTINUOUS);
+	lptim_counter_started = true;
+}
+
 static inline uint32_t z_clock_lptim_getcounter(void)
 {
 	uint32_t lp_time;
@@ -326,30 +338,32 @@ static bool arr_set(uint32_t arr)
 		return false;
 	}
 
-	uint32_t counter = z_clock_lptim_getcounter();
+	if (is_lptim_started()) {
+		uint32_t counter = z_clock_lptim_getcounter();
 
-	/* Leave the required guard after the sampled counter value. */
-	arr = MAX(arr, counter + LPTIM_GUARD_VALUE);
-	if (arr > lptim_time_base) {
-		return false;
-	}
-
-	if (arr > autoreload_current) {
-		/*
-		 * Postpone the match only while the current match is safely
-		 * ahead, or after ARRM has been asserted. Check ordering
-		 * before subtracting to avoid unsigned underflow.
-		 */
-		bool match_safely_ahead =
-			(counter < autoreload_current) &&
-			((autoreload_current - counter) >
-			 LPTIM_GUARD_VALUE);
-
-		if (!match_safely_ahead &&
-		    !LL_LPTIM_IsActiveFlag_ARRM(LPTIM)) {
-			/* The upcoming timer interrupt will recompute ARR. */
-			autoreload_next = 0U;
+		/* Leave the required guard after the sampled counter value. */
+		arr = MAX(arr, counter + LPTIM_GUARD_VALUE);
+		if (arr > lptim_time_base) {
 			return false;
+		}
+
+		if (arr > autoreload_current) {
+			/*
+			 * Postpone the match only while the current match is safely
+			 * ahead, or after ARRM has been asserted. Check ordering
+			 * before subtracting to avoid unsigned underflow.
+			 */
+			bool match_safely_ahead =
+				(counter < autoreload_current) &&
+				((autoreload_current - counter) >
+				 LPTIM_GUARD_VALUE);
+
+			if (!match_safely_ahead ||
+			    LL_LPTIM_IsActiveFlag_ARRM(LPTIM)) {
+				/* The upcoming timer interrupt will recompute ARR. */
+				autoreload_next = 0U;
+				return false;
+			}
 		}
 	}
 
@@ -575,29 +589,12 @@ void stm32_lptim_wait_ready(void)
 #endif
 }
 
-static int sys_clock_driver_init(void)
+/* Init driver software part, e.g. RAM data structure that are not lost
+ * in suspend to RAM
+ */
+static int sys_clock_driver_init_sw(void)
 {
 	int err;
-
-	/* Reset timer to default state using RCC */
-	(void)reset_line_toggle_dt(&lptim_reset);
-
-	/* Enable LPTIM bus clock */
-	err = clock_control_on(clk_ctrl, (clock_control_subsys_t) &lptim_clk[0]);
-	if (err < 0) {
-		return -EIO;
-	}
-
-	/* Enable autonomous mode for the LPTIM instance in use */
-	lptim_enable_autonomous_mode();
-
-	/* Enable LPTIM clock source */
-	err = clock_control_configure(clk_ctrl,
-				      (clock_control_subsys_t) &lptim_clk[1],
-				      NULL);
-	if (err < 0) {
-		return -EIO;
-	}
 
 	/* Get LPTIM clock freq */
 	err = clock_control_get_rate(clk_ctrl, (clock_control_subsys_t) &lptim_clk[1],
@@ -665,6 +662,36 @@ static int sys_clock_driver_init(void)
 	/* Actual lptim clock freq when the clock source is reduced by the prescaler */
 	lptim_clock_freq = lptim_clock_freq / lptim_clock_presc;
 
+	return 0;
+}
+
+/* Init LPTIM hardware part during initialization or
+ * after wakeup from standby
+ */
+static int sys_clock_driver_init_hw(void)
+{
+	int err;
+
+	/* Reset timer to default state using RCC */
+	(void)reset_line_toggle_dt(&lptim_reset);
+
+	/* Enable LPTIM bus clock */
+	err = clock_control_on(clk_ctrl, (clock_control_subsys_t) &lptim_clk[0]);
+	if (err < 0) {
+		return -EIO;
+	}
+
+	/* Enable autonomous mode for the LPTIM instance in use */
+	lptim_enable_autonomous_mode();
+
+	/* Enable LPTIM clock source */
+	err = clock_control_configure(clk_ctrl,
+				      (clock_control_subsys_t) &lptim_clk[1],
+				      NULL);
+	if (err < 0) {
+		return -EIO;
+	}
+
 	/* Clear the event flag and possible pending interrupt */
 	IRQ_CONNECT(DT_IRQN(LPTIM_SYSTIMER_NODE),
 		    DT_IRQ(LPTIM_SYSTIMER_NODE, priority),
@@ -719,39 +746,45 @@ static int sys_clock_driver_init(void)
 	LL_LPTIM_Enable(LPTIM);
 #endif /* !DT_HAS_COMPAT_STATUS_OKAY(st_stm32u5_lptim) */
 
-	/* Program the one-tick period before the counter starts. ARR is at its
-	 * reset value of zero here, which reads as a match about to happen, so
-	 * timer_core_init() below could not move it. A ticked kernel keeps this
-	 * period for good; a tickless one has it replaced at the first arming.
-	 */
-	lptim_set_autoreload((lptim_clock_freq / CONFIG_SYS_CLOCK_TICKS_PER_SEC) - 1);
-
-	/* Start the LPTIM counter in continuous mode */
-	LL_LPTIM_StartCounter(LPTIM, LL_LPTIM_OPERATING_MODE_CONTINUOUS);
-
 	/* Freeze LPTIM during debug */
 	lptim_freeze_during_debug();
 
-	timer_core_init();
-
+	lptim_counter_started = false;
 	return 0;
+}
+
+static int sys_clock_driver_init(void)
+{
+	int ret = sys_clock_driver_init_hw();
+	sys_clock_driver_init_sw();
+	timer_core_init();
+	lptim_start(LPTIM);
+	return ret;
 }
 
 void stm32_clock_control_standby_exit(void)
 {
 #ifdef CONFIG_STM32_LPTIM_STDBY_TIMER
-	if (clock_control_get_status(clk_ctrl,
-				     (clock_control_subsys_t) &lptim_clk[0])
-				     != CLOCK_CONTROL_STATUS_ON) {
-		sys_clock_driver_init();
+	if (timeout_stdby) {
+		(void) sys_clock_driver_init_hw();
+
+		/* Replace reset value of 1 for ARR, as it not
+		 * respecting guard time.
+		 * Start timer with longest interval to make sure
+		 * that no autoreload match occurs.
+		 * Do not check margin as counter is
+		 * stopped.
+		 * Assumption is that counter is not yet started
+		 */
+		lptim_set_autoreload(lptim_time_base);
+
+		lptim_start(LPTIM);
 	}
 #endif /* CONFIG_STM32_LPTIM_STDBY_TIMER */
 }
 
 void sys_clock_idle_exit(void)
 {
-	lptim_clock_restore();
-
 #ifdef CONFIG_STM32_LPTIM_STDBY_TIMER
 	if (timeout_stdby) {
 		uint64_t missed_lptim_cnt;
@@ -761,6 +794,15 @@ void sys_clock_idle_exit(void)
 		/* Get current value for standby timer and reset LPTIM counter value
 		 * to start anew.
 		 */
+		LL_LPTIM_ResetCounter(LPTIM);
+		/* Set the Autoreload value once the timer is enabled for non tickless system */
+		if (!IS_ENABLED(CONFIG_TICKLESS_KERNEL)) {
+			/* nb of LPTIM counter unit per kernel tick (depends on lptim clock prescaler) */
+			uint32_t count_per_tick = (lptim_clock_freq / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
+			/* LPTIM is triggered on a Tick period */
+			lptim_set_autoreload(count_per_tick - 1);
+		}
+
 		counter_get_value(stdby_timer, &stdby_timer_post);
 
 		/* Calculate how much time has passed since last measurement for standby timer */
@@ -788,7 +830,6 @@ void sys_clock_idle_exit(void)
 		 */
 		k_spinlock_key_t key = sys_clock_lock();
 
-		LL_LPTIM_ResetCounter(LPTIM);
 		accumulated_lptim_cnt += (uint32_t)missed_lptim_cnt;
 
 		timer_core_announce_cycles64_from(key, missed_lptim_cnt);
