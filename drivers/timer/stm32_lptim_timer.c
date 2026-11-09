@@ -456,6 +456,9 @@ static void timer_driver_set_reload(uint32_t rel)
 
 void sys_clock_idle_enter(uint32_t ticks)
 {
+	const struct pm_state_info *next_state;
+
+	next_state = pm_state_next_get(_current_cpu->id);
 	if (ticks == SYS_CLOCK_IDLE_FOREVER) {
 		/* Nothing to wake up for and the uptime may drift: gate the
 		 * LPTIM off. It is unclocked from here and cannot wake the CPU.
@@ -468,20 +471,17 @@ void sys_clock_idle_enter(uint32_t ticks)
 	}
 
 #ifdef CONFIG_STM32_LPTIM_STDBY_TIMER
-	const struct pm_state_info *next;
-
-	next = pm_state_next_get(_current_cpu->id);
 
 	/* Check if STANBY or STOP3 is requested */
 	timeout_stdby = false;
-	if (next != NULL) {
+	if (next_state != NULL) {
 #ifdef CONFIG_PM_S2RAM
-		if (next->state == PM_STATE_SUSPEND_TO_RAM) {
+		if (next_state->state == PM_STATE_SUSPEND_TO_RAM) {
 			timeout_stdby = true;
 		}
 #endif
 #ifdef CONFIG_STM32_STOP3_LP_MODE
-		if ((next->state == PM_STATE_SUSPEND_TO_IDLE) && (next->substate_id == 4)) {
+		if ((next_state->state == PM_STATE_SUSPEND_TO_IDLE) && (next_state->substate_id == 4)) {
 			timeout_stdby = true;
 		}
 #endif
@@ -520,7 +520,9 @@ void sys_clock_idle_enter(uint32_t ticks)
 	}
 #endif /* CONFIG_STM32_LPTIM_STDBY_TIMER */
 
-	sys_clock_set_timeout(ticks, false);
+	if (next_state->exit_latency_us > 0) {
+		sys_clock_set_timeout(ticks, false);
+	}
 }
 
 static void lptim_irq_handler(const struct device *unused)
