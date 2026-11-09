@@ -550,29 +550,12 @@ void stm32_lptim_wait_ready(void)
 #endif
 }
 
-static int sys_clock_driver_init(void)
+/* Init driver software part, e.g. RAM data structure that are not lost
+ * in suspend to RAM
+ */
+static int sys_clock_driver_init_sw(void)
 {
 	int err;
-
-	/* Reset timer to default state using RCC */
-	(void)reset_line_toggle_dt(&lptim_reset);
-
-	/* Enable LPTIM bus clock */
-	err = clock_control_on(clk_ctrl, (clock_control_subsys_t) &lptim_clk[0]);
-	if (err < 0) {
-		return -EIO;
-	}
-
-	/* Enable autonomous mode for the LPTIM instance in use */
-	lptim_enable_autonomous_mode();
-
-	/* Enable LPTIM clock source */
-	err = clock_control_configure(clk_ctrl,
-				      (clock_control_subsys_t) &lptim_clk[1],
-				      NULL);
-	if (err < 0) {
-		return -EIO;
-	}
 
 	/* Get LPTIM clock freq */
 	err = clock_control_get_rate(clk_ctrl, (clock_control_subsys_t) &lptim_clk[1],
@@ -640,6 +623,36 @@ static int sys_clock_driver_init(void)
 	/* Actual lptim clock freq when the clock source is reduced by the prescaler */
 	lptim_clock_freq = lptim_clock_freq / lptim_clock_presc;
 
+	return 0;
+}
+
+/* Init LPTIM hardware part during initialization or
+ * after wakeup from standby
+ */
+static int sys_clock_driver_init_hw(void)
+{
+	int err;
+
+	/* Reset timer to default state using RCC */
+	(void)reset_line_toggle_dt(&lptim_reset);
+
+	/* Enable LPTIM bus clock */
+	err = clock_control_on(clk_ctrl, (clock_control_subsys_t) &lptim_clk[0]);
+	if (err < 0) {
+		return -EIO;
+	}
+
+	/* Enable autonomous mode for the LPTIM instance in use */
+	lptim_enable_autonomous_mode();
+
+	/* Enable LPTIM clock source */
+	err = clock_control_configure(clk_ctrl,
+				      (clock_control_subsys_t) &lptim_clk[1],
+				      NULL);
+	if (err < 0) {
+		return -EIO;
+	}
+
 	/* Clear the event flag and possible pending interrupt */
 	IRQ_CONNECT(DT_IRQN(LPTIM_SYSTIMER_NODE),
 		    DT_IRQ(LPTIM_SYSTIMER_NODE, priority),
@@ -697,39 +710,44 @@ static int sys_clock_driver_init(void)
 	LL_LPTIM_Enable(LPTIM);
 #endif /* !DT_HAS_COMPAT_STATUS_OKAY(st_stm32u5_lptim) */
 
-	/* Program the one-tick period before the counter starts. ARR is at its
-	 * reset value of zero here, which reads as a match about to happen, so
-	 * timer_core_init() below could not move it. A ticked kernel keeps this
-	 * period for good; a tickless one has it replaced at the first arming.
-	 */
-	lptim_set_autoreload((lptim_clock_freq / CONFIG_SYS_CLOCK_TICKS_PER_SEC) - 1);
+	/* Freeze LPTIM during debug */
+	lptim_freeze_during_debug();
+
+	return 0;
+}
+static int sys_clock_driver_init(void)
+{
+	int ret = sys_clock_driver_init_hw();
+	sys_clock_driver_init_sw();
+
+	timer_core_init();
 
 	/* Start the LPTIM counter in continuous mode */
 	LL_LPTIM_StartCounter(LPTIM, LL_LPTIM_OPERATING_MODE_CONTINUOUS);
 
-	/* Freeze LPTIM during debug */
-	lptim_freeze_during_debug();
-
-	timer_core_init();
-
-	return 0;
+	return ret;
 }
 
 void stm32_clock_control_standby_exit(void)
 {
 #ifdef CONFIG_STM32_LPTIM_STDBY_TIMER
-	if (clock_control_get_status(clk_ctrl,
-				     (clock_control_subsys_t) &lptim_clk[0])
-				     != CLOCK_CONTROL_STATUS_ON) {
-		sys_clock_driver_init();
+	if (timeout_stdby) {
+		(void) sys_clock_driver_init_hw();
+		/* Start timer with longest interval to make sure
+		 * that no matching irq is triggered before the end
+		 * of resume phase. The timer deadline will be updated
+		 * sys_clock_idle_exit.
+		 */
+		lptim_set_autoreload(lptim_time_base);
+
+		/* Start the LPTIM counter in continuous mode */
+		LL_LPTIM_StartCounter(LPTIM, LL_LPTIM_OPERATING_MODE_CONTINUOUS);
 	}
 #endif /* CONFIG_STM32_LPTIM_STDBY_TIMER */
 }
 
 void sys_clock_idle_exit(void)
 {
-	lptim_clock_restore();
-
 #ifdef CONFIG_STM32_LPTIM_STDBY_TIMER
 	if (timeout_stdby) {
 		uint64_t missed_lptim_cnt;
@@ -739,6 +757,15 @@ void sys_clock_idle_exit(void)
 		/* Get current value for standby timer and reset LPTIM counter value
 		 * to start anew.
 		 */
+		LL_LPTIM_ResetCounter(LPTIM);
+		/* Set the Autoreload value once the timer is enabled for non tickless system */
+		if (!IS_ENABLED(CONFIG_TICKLESS_KERNEL)) {
+			/* nb of LPTIM counter unit per kernel tick (depends on lptim clock prescaler) */
+			uint32_t count_per_tick = (lptim_clock_freq / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
+			/* LPTIM is triggered on a Tick period */
+			lptim_set_autoreload(count_per_tick - 1);
+		}
+
 		counter_get_value(stdby_timer, &stdby_timer_post);
 
 		/* Calculate how much time has passed since last measurement for standby timer */
@@ -766,7 +793,6 @@ void sys_clock_idle_exit(void)
 		 */
 		k_spinlock_key_t key = sys_clock_lock();
 
-		LL_LPTIM_ResetCounter(LPTIM);
 		accumulated_lptim_cnt += (uint32_t)missed_lptim_cnt;
 
 		timer_core_announce_cycles64_from(key, missed_lptim_cnt);
