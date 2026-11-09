@@ -497,7 +497,6 @@ void sys_clock_idle_enter(uint32_t ticks)
 	}
 #endif /* CONFIG_STM32_LPTIM_STDBY_TIMER */
 
-	sys_clock_set_timeout(ticks, false);
 }
 
 static void lptim_irq_handler(const struct device *unused)
