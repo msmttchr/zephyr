@@ -51,6 +51,13 @@
 #define STM32_LPTIM_PRELOAD_ENABLED    LL_LPTIM_UPDATE_MODE_ENDOFPERIOD
 #endif /* CONFIG_STM32_HAL2 */
 
+#if CONFIG_STM32_LPTIM_CLOCK==32768
+/* Experimentally measured offset for standby cycle (in 32768 Hz ticks) */
+#define STANDBY_OFFSET_TICKS   3U
+#else
+#define STANDBY_OFFSET_TICKS   0U
+#endif /* CONFIG_STM32_LPTIM_CLOCK=32768 */
+
 static const struct stm32_pclken lptim_clk[] = STM32_DT_CLOCKS(LPTIM_SYSTIMER_NODE);
 
 static const struct device *const clk_ctrl = DEVICE_DT_GET(STM32_CLOCK_CONTROL_NODE);
@@ -784,7 +791,7 @@ void sys_clock_idle_exit(void)
 		missed_lptim_cnt = (CONFIG_STM32_LPTIM_CLOCK * stdby_timer_us) /
 				   USEC_PER_SEC;
 		/* Add the LPTIM cnt pre standby */
-		missed_lptim_cnt += lptim_cnt_pre_stdby;
+		missed_lptim_cnt += lptim_cnt_pre_stdby + STANDBY_OFFSET_TICKS;
 
 		/* Hand the standby span to the core directly rather than folding
 		 * it into the counter for the announce to find: the counter is 32
