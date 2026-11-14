@@ -404,7 +404,14 @@ int64_t pm_policy_next_custom_ticks(void)
 	} else {
 		uint64_t next_radio_evt_us = os_timer_get_earliest_time();
 
-		if (next_radio_evt_us == LL_DP_SLP_NO_WAKEUP) {
+		/* os_timer_get_earliest_time return time in usec
+		 * for next radio activity as uint64_t,
+		 * while LL_DP_SLP_NO_WAKEUP constant is defined
+		 * as 32 bits. We will assume that any value
+		 * >= than LL_DP_SLP_NO_WAKEUP indicates no
+		 * radio event pending
+		 */
+		if (next_radio_evt_us >= LL_DP_SLP_NO_WAKEUP) {
 			ret = -1LL; /* No radio event pending */
 		} else {
 			ret = k_us_to_ticks_floor64(next_radio_evt_us);
