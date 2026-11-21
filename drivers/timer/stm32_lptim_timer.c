@@ -21,6 +21,7 @@
 #include <zephyr/drivers/counter.h>
 #include <zephyr/drivers/reset.h>
 #include <zephyr/pm/pm.h>
+#include <zephyr/tracing/tracing.h>
 
 #include <zephyr/spinlock.h>
 
@@ -330,10 +331,12 @@ static inline uint32_t z_clock_lptim_getcounter(void)
  * @return false if no write was needed, postponement was deferred, or
  *         the adjusted value exceeded lptim_time_base.
  */
+volatile int margin_violation = 0;
 static bool arr_set(uint32_t arr)
 {
 	uint32_t autoreload_current = LL_LPTIM_GetAutoReload(LPTIM);
 
+	sys_trace_named_event("arr_set_call", arr, autoreload_current);
 	if ((arr == 0U) || (arr == autoreload_current)) {
 		autoreload_next = 0U;
 		return false;
@@ -343,6 +346,9 @@ static bool arr_set(uint32_t arr)
 		uint32_t counter = z_clock_lptim_getcounter();
 
 		/* Leave the required guard after the sampled counter value. */
+		if (MAX(arr, counter + LPTIM_GUARD_VALUE) > lptim_time_base) {
+			margin_violation+=100;
+		}
 		arr = MAX(arr, counter + LPTIM_GUARD_VALUE);
 		if (arr > lptim_time_base) {
 			return false;
@@ -361,6 +367,8 @@ static bool arr_set(uint32_t arr)
 			if (!match_safely_ahead ||
 			    LL_LPTIM_IsActiveFlag_ARRM(LPTIM)) {
 				/* The upcoming timer interrupt will recompute ARR. */
+				sys_trace_named_event("MV", counter, autoreload_current);
+				margin_violation++;
 				autoreload_next = 0U;
 				return false;
 			}
@@ -535,16 +543,17 @@ void sys_clock_idle_enter(uint32_t ticks)
 		sys_clock_set_timeout(ticks, false);
 	}
 }
-
+static int irq_count = 0;
 static void lptim_irq_handler(const struct device *unused)
 {
 
 	ARG_UNUSED(unused);
-
 	uint32_t autoreload = LL_LPTIM_GetAutoReload(LPTIM);
 	bool arrm = arrm_state_get();
 	bool arrok = (LL_LPTIM_IsActiveFlag_ARROK(LPTIM) != 0) &&
 					(LL_LPTIM_IsEnabledIT_ARROK(LPTIM) != 0);
+	irq_count++;
+	sys_trace_named_event("arr_irq", arrok + (arrm*10)+irq_count*1000, autoreload);
 	if (arrok) {
 		autoreload_ready = true;
 		LL_LPTIM_ClearFlag_ARROK(LPTIM);
@@ -753,6 +762,8 @@ static int sys_clock_driver_init_hw(void)
 
 static int sys_clock_driver_init(void)
 {
+	sys_trace_named_event("sys_clock_init", 0, 0);
+
 	int ret = sys_clock_driver_init_hw();
 
 	if (ret == 0) {

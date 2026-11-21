@@ -284,7 +284,8 @@ int main(void)
 		  error_count++;
 		}
 		sys_trace_named_event("Loop", counter, sys_clock_now-sys_clock_start);
-		printf("Loop %d, instant delta: %d, %d r (%d) cum delta: %d, %d r (%d), (errors:%d) %s\n",
+		extern volatile int margin_violation;
+		printf("Loop %d, instant delta: %d, %d r (%d) cum delta: %d, %d r (%d), (errors:%d) %s, margin violations %d\n",
 		       counter++,
 		       delta_last_sys_clock,
 		       delta_last_radio_timer,
@@ -293,11 +294,12 @@ int main(void)
 		       delta_radio_timer,
 		       delta_sys_clock - delta_radio_timer,
 		       error_count,
-		       error ? "****": ""
+		       error ? "****": "",
+			   margin_violation
 		       );
 		sys_clock_last = sys_clock_now;
 		radio_timer_last = radio_timer_now;
-		if (counter > 15) {
+		if (counter > 10) {
 		  // k_panic();
 		}
 		/* Heartrate measurements simulation */

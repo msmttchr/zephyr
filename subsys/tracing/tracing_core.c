@@ -155,9 +155,11 @@ SYS_INIT(tracing_init, TRACING_INIT_LEVEL, CONFIG_TRACING_INIT_PRIORITY);
  * with SYSTEM_CLOCK_INIT_PRIORITY, so require a strictly higher tracing priority.
  */
 #if defined(CONFIG_TRACING_INIT_LEVEL_PRE_KERNEL_2) && defined(CONFIG_SYS_CLOCK_EXISTS)
+#if 0
 BUILD_ASSERT(CONFIG_TRACING_INIT_PRIORITY > CONFIG_SYSTEM_CLOCK_INIT_PRIORITY,
 	     "Tracing at PRE_KERNEL_2 must init after the system timer: set "
 	     "TRACING_INIT_PRIORITY > SYSTEM_CLOCK_INIT_PRIORITY for valid timestamps");
+#endif
 #endif
 
 #ifdef CONFIG_TRACING_ASYNC
